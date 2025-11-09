@@ -549,6 +549,7 @@ function app_header() {
     $googleFontFamilies[] = 'Pacifico';
     $googleFontFamilies[] = 'Playfair+Display:wght@400;600;700';
   }
+  $categoryFontRequires = is_array($categoryFontRequires) ? $categoryFontRequires : [];
   foreach ($categoryFontRequires as $reqFont) {
     if ($reqFont === 'inter') {
       $googleFontFamilies[] = 'Inter:wght@400;500;600;700';
@@ -609,8 +610,8 @@ function app_header() {
     $foodCss = function_exists('asset_url') ? asset_url('assets/theme-food.css') : 'assets/theme-food.css';
     echo '  <link href="'.$foodCss.'" rel="stylesheet">';
   }
-  if ($categoryFontFamilyValue !== '') {
-    $safeFontValue = htmlspecialchars($categoryFontFamilyValue, ENT_NOQUOTES, 'UTF-8');
+  if (!empty($categoryFontFamilyValue)) {
+    $safeFontValue = htmlspecialchars((string)$categoryFontFamilyValue, ENT_NOQUOTES, 'UTF-8');
     echo '  <style>:root{--category-font-family:'.$safeFontValue.';}</style>';
   }
   $brandPrimary = $brandPalette['600'] ?? $themeColor;
