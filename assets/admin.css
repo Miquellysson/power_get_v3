@@ -173,7 +173,11 @@ textarea{min-height:120px;}
 .table-responsive{overflow:auto;border-radius:var(--radius-xl);border:1px solid rgba(255,255,255,.08);}
 .data-table,.table{width:100%;border-collapse:separate;border-spacing:0;font-size:.95rem;}
 .data-table thead th,.table thead th{position:sticky;top:0;background:rgba(10,13,24,.95);padding:var(--space-4);text-align:left;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.06);}
-.data-table tbody td,.table tbody td{padding:var(--space-4);border-bottom:1px solid rgba(255,255,255,.05);}
+.data-table tbody td,.table tbody td{
+  padding:var(--space-4);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  word-break:break-word;
+}
 .status-badge{display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-3);border-radius:999px;font-size:.75rem;font-weight:600;}
 .status-badge--ok{background:rgba(16,185,129,.25);color:#34d399;}
 .status-badge--warn{background:rgba(245,158,11,.22);color:#fbbf24;}

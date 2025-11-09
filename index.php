@@ -26,9 +26,17 @@ $d   = lang();
 $cfg = cfg();
 $categoryFontChoiceSetting = setting_get('store_category_font_choice', 'default');
 $categoryFontCustomSetting = setting_get('store_category_font_custom', '');
-$categoryFontData = store_category_font_stack($categoryFontChoiceSetting, $categoryFontCustomSetting);
-$categoryFontFamilyValue = trim((string)($categoryFontData['stack'] ?? ''));
-$categoryFontRequires = $categoryFontData['requires'] ?? [];
+if (function_exists('store_category_font_stack')) {
+  $categoryFontData = store_category_font_stack($categoryFontChoiceSetting, $categoryFontCustomSetting);
+  $categoryFontFamilyValue = trim((string)($categoryFontData['stack'] ?? ''));
+  $categoryFontRequires = $categoryFontData['requires'] ?? [];
+} else {
+  $categoryFontFamilyValue = '';
+  $categoryFontRequires = [];
+}
+if (!is_array($categoryFontRequires)) {
+  $categoryFontRequires = [];
+}
 
 /* ======================
    Router
