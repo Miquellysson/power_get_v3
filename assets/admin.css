@@ -108,6 +108,24 @@ a{color:inherit;}
 .stat-card__hint{font-size:.78rem;color:var(--muted);}
 .stat-card--pending .stat-card__value{color:#fbbf24;}
 .stat-card--success .stat-card__value{color:#34d399;}
+.seo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-4);}
+.seo-card{padding:var(--space-5);border-radius:var(--radius-xl);border:1px solid rgba(255,255,255,.08);background:linear-gradient(160deg,rgba(20,32,57,.92),rgba(9,13,23,.96));box-shadow:var(--shadow-card);display:flex;flex-direction:column;gap:var(--space-4);}
+.seo-card__header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);}
+.seo-card__header h2{margin:0;font-size:1.1rem;}
+.seo-card__header p{margin:0;color:var(--muted);font-size:.85rem;}
+.seo-score{font-size:2.8rem;font-weight:700;color:#38bdf8;}
+.seo-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-3);}
+.seo-meta span{font-size:.78rem;color:var(--muted);}
+.seo-meta strong{font-size:1rem;}
+.seo-progress{display:flex;flex-direction:column;gap:var(--space-2);}
+.progress-bar{width:100%;height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
+.progress-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--secondary));}
+.seo-checklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.75rem;}
+.seo-checklist li{display:flex;flex-direction:column;gap:.25rem;padding:.6rem .8rem;border-radius:var(--radius-md);border:1px solid rgba(255,255,255,.08);}
+.seo-checklist li.ok{border-color:rgba(16,185,129,.4);}
+.seo-checklist li.warn{border-color:rgba(245,158,11,.4);}
+.seo-checklist li.danger{border-color:rgba(239,68,68,.4);}
+.seo-checklist small{color:var(--muted);font-size:.8rem;}
 .checklist{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-2);}
 .checklist li{display:flex;align-items:flex-start;gap:var(--space-3);font-size:.9rem;color:var(--muted);}
 .checklist i{color:#34d399;margin-top:2px;}

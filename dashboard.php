@@ -41,12 +41,32 @@ try{ $counts['products']   = (int)$pdo->query("SELECT COUNT(*) FROM products WHE
 try{ $counts['categories'] = (int)$pdo->query("SELECT COUNT(*) FROM categories WHERE active=1")->fetchColumn(); }catch(Throwable $e){}
 
 $quickLinks = [
-  ['icon'=>'fa-receipt','label'=>'Pedidos','desc'=>'Acompanhe os pedidos recentes','href'=>'orders.php'],
-  ['icon'=>'fa-pills','label'=>'Produtos','desc'=>'Gerencie catálogo e estoque','href'=>'products.php'],
-  ['icon'=>'fa-tags','label'=>'Categorias','desc'=>'Organize suas vitrines','href'=>'categories.php'],
-  ['icon'=>'fa-users','label'=>'Clientes','desc'=>'Consulte informações dos clientes','href'=>'customers.php'],
-  ['icon'=>'fa-user-shield','label'=>'Usuários','desc'=>'Controle acessos do time','href'=>'users.php'],
-  ['icon'=>'fa-sliders','label'=>'Configurações','desc'=>'Pagamentos, layout e integrações','href'=>'settings.php?tab=general'],
+  ['icon'=>'fa-receipt','label'=>'Pedidos','desc'=>'Pedidos e status','href'=>'orders.php'],
+  ['icon'=>'fa-pills','label'=>'Produtos','desc'=>'Catálogo, estoque','href'=>'products.php'],
+  ['icon'=>'fa-tags','label'=>'Categorias','desc'=>'Vitrines e filtros','href'=>'categories.php'],
+  ['icon'=>'fa-users','label'=>'Clientes','desc'=>'Perfis e contatos','href'=>'customers.php'],
+  ['icon'=>'fa-user-shield','label'=>'Usuários','desc'=>'Time e permissões','href'=>'users.php'],
+  ['icon'=>'fa-sliders','label'=>'Configurações','desc'=>'Pagamentos e layout','href'=>'settings.php?tab=general'],
+];
+
+$seoScore = 86;
+$seoTrend = '+4 pts vs. mês anterior';
+$metaTitleLength = 58;
+$metaDescriptionLength = 148;
+$metaKeywords = 12;
+$seoChecks = [
+    ['label' => 'Meta title',       'status' => 'ok',     'detail' => '58 caracteres (ideal 50-60)'],
+    ['label' => 'Meta description', 'status' => 'warn',   'detail' => '148 caracteres (próximo do limite)'],
+    ['label' => 'Open Graph',       'status' => 'ok',     'detail' => 'Imagem e título definidos'],
+    ['label' => 'Sitemap.xml',      'status' => 'ok',     'detail' => 'Atualizado há 2 dias'],
+    ['label' => 'Robots.txt',       'status' => 'ok',     'detail' => 'Permite indexação'],
+    ['label' => 'PageSpeed mobile', 'status' => 'warn',   'detail' => '74/100 — revisar imagens'],
+];
+$trafegoSources = [
+    ['canal' => 'Orgânico', 'crescimento' => '+12%', 'trafego' => 1820],
+    ['canal' => 'Pago',     'crescimento' => '+4%',  'trafego' => 940],
+    ['canal' => 'Social',   'crescimento' => '-2%',  'trafego' => 610],
+    ['canal' => 'Direto',   'crescimento' => '+8%',  'trafego' => 420],
 ];
 
 echo '<section class="page-header">';
@@ -71,20 +91,44 @@ foreach ($quickLinks as $link) {
 }
 echo '</div>';
 
-$statCards = [
-  ['icon'=>'fa-receipt','label'=>'Pedidos','value'=>$counts['orders'],'hint'=>'Total de pedidos registrados.'],
-  ['icon'=>'fa-users','label'=>'Clientes','value'=>$counts['customers'],'hint'=>'Clientes cadastrados.'],
-  ['icon'=>'fa-box-open','label'=>'Produtos ativos','value'=>$counts['products'],'hint'=>'Itens disponíveis na loja.'],
-  ['icon'=>'fa-layer-group','label'=>'Categorias','value'=>$counts['categories'],'hint'=>'Coleções publicadas.'],
-];
 echo '<section class="stats-grid">';
-foreach ($statCards as $card) {
-  echo '<article class="stat-card">';
-  echo '  <div class="stat-card__label"><i class="fa-solid '.sanitize_html($card['icon']).'" aria-hidden="true"></i> '.sanitize_html($card['label']).'</div>';
-  echo '  <div class="stat-card__value">'.number_format((int)$card['value'], 0, ',', '.').'</div>';
-  echo '  <p class="stat-card__hint">'.sanitize_html($card['hint']).'</p>';
-  echo '</article>';
+echo '  <article class="stat-card"><div class="stat-card__label"><i class="fa-solid fa-receipt" aria-hidden="true"></i> Pedidos</div><div class="stat-card__value">'.number_format($counts['orders']).'</div><p class="stat-card__hint">Total registrados.</p></article>';
+echo '  <article class="stat-card"><div class="stat-card__label"><i class="fa-solid fa-users" aria-hidden="true"></i> Clientes</div><div class="stat-card__value">'.number_format($counts['customers']).'</div><p class="stat-card__hint">Contatos ativos.</p></article>';
+echo '  <article class="stat-card"><div class="stat-card__label"><i class="fa-solid fa-box-open" aria-hidden="true"></i> Produtos ativos</div><div class="stat-card__value">'.number_format($counts['products']).'</div><p class="stat-card__hint">Disponíveis na vitrine.</p></article>';
+echo '  <article class="stat-card"><div class="stat-card__label"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Categorias</div><div class="stat-card__value">'.number_format($counts['categories']).'</div><p class="stat-card__hint">Coleções publicadas.</p></article>';
+echo '</section>';
+
+echo '<section class="seo-grid">';
+echo '  <article class="seo-card seo-card--score">';
+echo '    <div class="seo-card__header"><div><h2>SEO Score</h2><p>'.$seoTrend.'</p></div><span class="seo-score">'.$seoScore.'</span></div>';
+echo '    <div class="seo-meta">';
+echo '      <div><span>Meta title</span><strong>'.$metaTitleLength.'/60</strong></div>';
+echo '      <div><span>Meta description</span><strong>'.$metaDescriptionLength.'/160</strong></div>';
+echo '      <div><span>Keywords</span><strong>'.$metaKeywords.'</strong></div>';
+echo '    </div>';
+echo '    <div class="seo-progress">';
+echo '      <span>Visibilidade orgânica</span>';
+echo '      <div class="progress-bar"><span style="width: '.min(100, $seoScore).'%"></span></div>';
+echo '    </div>';
+echo '  </article>';
+echo '  <article class="seo-card">';
+echo '    <div class="seo-card__header"><div><h2>Checklist SEO</h2><p>Verificações automáticas</p></div></div>';
+echo '    <ul class="seo-checklist">';
+foreach ($seoChecks as $check) {
+  $statusClass = $check['status'] === 'ok' ? 'ok' : ($check['status'] === 'warn' ? 'warn' : 'danger');
+  echo '  <li class="'.$statusClass.'"><span>'.sanitize_html($check['label']).'</span><small>'.sanitize_html($check['detail']).'</small></li>';
 }
+echo '    </ul>';
+echo '  </article>';
+echo '  <article class="seo-card">';
+echo '    <div class="seo-card__header"><div><h2>Fontes de tráfego</h2><p>Últimos 7 dias</p></div></div>';
+echo '    <div class="table-responsive"><table class="data-table">';
+echo '      <thead><tr><th>Canal</th><th>Crescimento</th><th>Visitas</th></tr></thead><tbody>';
+foreach ($trafegoSources as $source) {
+  echo '      <tr><td>'.sanitize_html($source['canal']).'</td><td>'.$source['crescimento'].'</td><td>'.number_format($source['trafego']).'</td></tr>';
+}
+echo '      </tbody></table></div>';
+echo '  </article>';
 echo '</section>';
 
 // Últimos pedidos
