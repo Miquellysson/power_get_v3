@@ -24,15 +24,14 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 if (isset($_GET['lang'])) set_lang($_GET['lang']);
 $d   = lang();
 $cfg = cfg();
+$categoryFontFamilyValue = '';
+$categoryFontRequires = [];
 $categoryFontChoiceSetting = setting_get('store_category_font_choice', 'default');
 $categoryFontCustomSetting = setting_get('store_category_font_custom', '');
 if (function_exists('store_category_font_stack')) {
   $categoryFontData = store_category_font_stack($categoryFontChoiceSetting, $categoryFontCustomSetting);
   $categoryFontFamilyValue = trim((string)($categoryFontData['stack'] ?? ''));
   $categoryFontRequires = $categoryFontData['requires'] ?? [];
-} else {
-  $categoryFontFamilyValue = '';
-  $categoryFontRequires = [];
 }
 if (!is_array($categoryFontRequires)) {
   $categoryFontRequires = [];
