@@ -182,8 +182,13 @@ function admin_footer()
     $systemVersion = '3.0 — criação Mike Lins';
     echo '</main>';
     echo '<footer class="dashboard-footer">';
-    echo '<span>' . sanitize_html($systemVersion) . '</span>';
-    echo '<span>&copy; ' . date('Y') . ' ' . sanitize_html($storeName) . '</span>';
+    $customFooter = $GLOBALS['_ADMIN_CUSTOM_FOOTER'] ?? null;
+    if ($customFooter !== null) {
+        echo '<span>' . sanitize_html($customFooter) . '</span>';
+    } else {
+        echo '<span>' . sanitize_html($systemVersion) . '</span>';
+        echo '<span>&copy; ' . date('Y') . ' ' . sanitize_html($storeName) . '</span>';
+    }
     echo '</footer>';
     echo '</div>'; // .app-view
     echo '</div>'; // .app-container

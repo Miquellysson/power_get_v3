@@ -58,6 +58,7 @@ echo '  </div>';
 echo '  <div class="page-header__actions">';
 echo '    <a class="btn btn-ghost" href="settings.php?tab=general"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span>Configurações</span></a>';
 echo '    <a class="btn btn-primary" href="orders.php"><i class="fa-solid fa-receipt" aria-hidden="true"></i><span>Ver pedidos</span></a>';
+echo '    <a class="btn btn-ghost" href="admin.php?route=logout"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>Sair</span></a>';
 echo '  </div>';
 echo '</section>';
 
@@ -114,4 +115,6 @@ try{
 }
 echo '</div>';
 
+$footerStoreName = setting_get('store_name', cfg()['store']['name'] ?? 'Sua Loja');
+$GLOBALS['_ADMIN_CUSTOM_FOOTER'] = '© 2025 ' . $footerStoreName . ' — todos os direitos reservados.';
 admin_footer();

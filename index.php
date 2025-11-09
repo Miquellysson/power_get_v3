@@ -32,9 +32,9 @@ if (function_exists('store_category_font_stack')) {
   $categoryFontData = store_category_font_stack($categoryFontChoiceSetting, $categoryFontCustomSetting);
   $categoryFontFamilyValue = trim((string)($categoryFontData['stack'] ?? ''));
   $categoryFontRequires = $categoryFontData['requires'] ?? [];
-}
-if (!is_array($categoryFontRequires)) {
-  $categoryFontRequires = [];
+  if (!is_array($categoryFontRequires)) {
+    $categoryFontRequires = [];
+  }
 }
 
 /* ======================
