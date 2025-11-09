@@ -317,29 +317,28 @@ try{
     // Cabeçalho sem layout (sem sidebar), com hero
     admin_header('Login - Admin', false);
 
-    // HERO
-    admin_hero('Bem-vindo ao Painel', 'Acesse para gerenciar pedidos, produtos e configurações', false);
-
-    // Formulário central
-    echo '<div class="grid place-items-center pb-10">';
-    echo '  <form method="post" class="card p-6 w-full max-w-md">';
-    echo '    <h2 class="text-xl font-semibold mb-1">Acessar painel</h2>';
-    echo '    <p class="text-sm link-muted mb-4">Use suas credenciais administrativas.</p>';
+    echo '<section class="auth-shell">';
+    echo '  <div class="auth-hero">';
+    echo '    <p class="page-eyebrow">Painel Administrativo</p>';
+    echo '    <h1>Bem-vindo ao Get Power</h1>';
+    echo '    <p>Acesse para gerenciar pedidos, catálogo e configurações.</p>';
+    echo '  </div>';
+    echo '  <form method="post" class="auth-card">';
+    echo '    <h2 class="text-xl font-semibold">Acessar painel</h2>';
+    echo '    <p class="link-muted">Use suas credenciais administrativas.</p>';
     if (!empty($err)) {
-      echo '  <div class="mb-3 p-3 rounded bg-red-50 text-red-700 border border-red-200 text-sm"><i class="fa-solid fa-circle-exclamation mr-2"></i>'.sanitize_html($err).'</div>';
+      echo '    <div class="alert alert-error"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>'.sanitize_html($err).'</span></div>';
     }
     echo '    <input type="hidden" name="csrf" value="'.csrf_token().'">';
-    echo '    <label class="block text-sm mb-1">E-mail</label>';
-    echo '    <input class="w-full border rounded px-3 py-2 mb-3" type="email" name="email" required>';
-    echo '    <label class="block text-sm mb-1">Senha</label>';
-    echo '    <input class="w-full border rounded px-3 py-2 mb-4" type="password" name="password" required>';
-    echo '    <button class="btn btn-primary w-full" type="submit"><i class="fa-solid fa-right-to-bracket mr-2"></i>Entrar</button>';
-    echo '    <div class="mt-3 flex items-center justify-between text-sm">';
-    echo '      <a class="text-brand-600 hover:underline" href="forgot_password.php"><i class="fa-solid fa-key mr-1"></i>Esqueci minha senha</a>';
-    echo '      <a class="btn btn-ghost" href="index.php" target="_blank"><i class="fa-solid fa-store mr-1"></i>Ver loja</a>';
+    echo '    <div class="form-field"><label>E-mail</label><input class="input" type="email" name="email" required></div>';
+    echo '    <div class="form-field"><label>Senha</label><input class="input" type="password" name="password" required></div>';
+    echo '    <button class="btn btn-primary btn-block" type="submit"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>Entrar</span></button>';
+    echo '    <div class="auth-links">';
+    echo '      <a class="link-muted" href="forgot_password.php"><i class="fa-solid fa-key" aria-hidden="true"></i> Esqueci minha senha</a>';
+    echo '      <a class="btn btn-ghost" href="index.php" target="_blank" rel="noopener"><i class="fa-solid fa-store" aria-hidden="true"></i><span>Ver loja</span></a>';
     echo '    </div>';
     echo '  </form>';
-    echo '</div>';
+    echo '</section>';
 
     admin_footer();
     exit;

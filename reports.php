@@ -170,53 +170,78 @@ $rangeButtons = [
 
 admin_header('Relatórios');
 
-echo '<div class="card mb-4">';
-echo '  <div class="card-title">Relatórios de pedidos e financeiro</div>';
-echo '  <div class="p-3">';
-echo '    <div class="flex flex-wrap gap-2 mb-3">';
+echo '<section class="page-header">';
+echo '  <div class="page-header__content">';
+echo '    <p class="page-eyebrow">Inteligência</p>';
+echo '    <h1>Relatórios de pedidos e financeiro</h1>';
+echo '    <p class="page-subtitle">Combine filtros de período para analisar conversão, faturamento e métodos de pagamento.</p>';
+echo '  </div>';
+echo '  <div class="page-header__actions">';
+echo '    <a class="btn btn-ghost" href="dashboard.php"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i><span>Dashboard</span></a>';
+echo '    <a class="btn btn-primary" href="orders.php"><i class="fa-solid fa-receipt" aria-hidden="true"></i><span>Pedidos</span></a>';
+echo '  </div>';
+echo '</section>';
+
+echo '<div class="card filter-card">';
+echo '  <div class="card-title">Período analisado</div>';
+echo '  <div class="filter-group">';
 foreach ($rangeButtons as $key => $label) {
-  $class = $rangeParam === $key ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  $class = $rangeParam === $key ? 'filter-chip active' : 'filter-chip';
   $query = http_build_query(['range' => $key] + ($key === 'custom' ? ['start' => $startInputValue, 'end' => $endInputValue] : []));
   echo '<a class="'.$class.'" href="reports.php?'.$query.'">'.$label.'</a>';
 }
-echo '    </div>';
-echo '    <form class="grid md:grid-cols-4 gap-3 items-end" method="get">';
-echo '      <input type="hidden" name="range" value="custom">';
-echo '      <div><label class="block text-xs font-semibold uppercase mb-1">Início</label><input class="input w-full" type="date" name="start" value="'.sanitize_html($startInputValue).'"></div>';
-echo '      <div><label class="block text-xs font-semibold uppercase mb-1">Fim</label><input class="input w-full" type="date" name="end" value="'.sanitize_html($endInputValue).'"></div>';
-echo '      <div class="md:col-span-2 flex gap-2">';
-echo '        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-sliders mr-2"></i>Aplicar período</button>';
-echo '        <a class="btn btn-ghost" href="reports.php"><i class="fa-solid fa-rotate-left mr-2"></i>Resetar</a>';
-echo '      </div>';
-echo '    </form>';
-echo '    <p class="text-xs text-gray-500 mt-3">Período analisado: <strong>'.format_datetime($rangeStart->format('Y-m-d H:i:s'), 'd/m/Y H:i').'</strong> até <strong>'.format_datetime($rangeEnd->format('Y-m-d H:i:s'), 'd/m/Y H:i').'</strong> ('.$rangeLabel.').</p>';
 echo '  </div>';
+echo '  <form class="field-grid two align-end" method="get">';
+echo '    <input type="hidden" name="range" value="custom">';
+echo '    <div class="form-field"><label>Início</label><input class="input" type="date" name="start" value="'.sanitize_html($startInputValue).'"></div>';
+echo '    <div class="form-field"><label>Fim</label><input class="input" type="date" name="end" value="'.sanitize_html($endInputValue).'"></div>';
+echo '    <div class="form-field field-span-2" style="margin-bottom:0;display:flex;gap:var(--space-3);flex-wrap:wrap;">';
+echo '      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span>Aplicar período</span></button>';
+echo '      <a class="btn btn-ghost" href="reports.php"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>Resetar</span></a>';
+echo '    </div>';
+echo '  </form>';
+echo '  <p class="hint">Período: <strong>'.format_datetime($rangeStart->format('Y-m-d H:i:s'), 'd/m/Y H:i').'</strong> até <strong>'.format_datetime($rangeEnd->format('Y-m-d H:i:s'), 'd/m/Y H:i').'</strong> — '.$rangeLabel.'.</p>';
 echo '</div>';
 
-echo '<div class="grid md:grid-cols-2 gap-3 mb-4">';
-echo '  <div class="card"><div class="card-title">Pedidos</div><div class="p-4 space-y-3">';
-echo '    <div><span class="text-sm text-gray-500">Total de pedidos</span><div class="text-3xl font-semibold">'.$totalOrders.'</div></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Pedidos pagos/enviados</span><span class="font-semibold">'.$paidOrders.' ('.number_format($conversionRate, 1, ',', '.').'% conversão)</span></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Pedidos pendentes</span><span class="font-semibold">'.$pendingOrders.'</span></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Pedidos cancelados</span><span class="font-semibold">'.$canceledOrders.'</span></div>';
-echo '  </div></div>';
-
-echo '  <div class="card"><div class="card-title">Financeiro</div><div class="p-4 space-y-3">';
-echo '    <div><span class="text-sm text-gray-500">Faturamento bruto</span><div class="text-3xl font-semibold">'.format_currency($grossRevenue, $storeCurrency).'</div></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Faturamento confirmado</span><span class="font-semibold">'.format_currency($paidRevenue, $storeCurrency).'</span></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Ticket médio (pagos)</span><span class="font-semibold">'.format_currency($ticketMedio, $storeCurrency).'</span></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Valor pendente</span><span class="font-semibold">'.format_currency($pendingValue, $storeCurrency).'</span></div>';
-echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Valor cancelado</span><span class="font-semibold">'.format_currency($canceledValue, $storeCurrency).'</span></div>';
+echo '<div class="stats-grid">';
+echo '  <article class="stat-card">';
+echo '    <div class="stat-card__label"><i class="fa-solid fa-receipt" aria-hidden="true"></i> Pedidos</div>';
+echo '    <div class="stat-card__value">'.$totalOrders.'</div>';
+echo '    <p class="stat-card__hint">Pagos/enviados: '.$paidOrders.' ('.number_format($conversionRate, 1, ',', '.').'% conversão)</p>';
+echo '  </article>';
+echo '  <article class="stat-card">';
+echo '    <div class="stat-card__label"><i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i> Faturamento bruto</div>';
+echo '    <div class="stat-card__value">'.format_currency($grossRevenue, $storeCurrency).'</div>';
+echo '    <p class="stat-card__hint">Confirmado: '.format_currency($paidRevenue, $storeCurrency).'</p>';
+echo '  </article>';
+echo '  <article class="stat-card">';
+echo '    <div class="stat-card__label"><i class="fa-solid fa-ticket" aria-hidden="true"></i> Ticket médio (pagos)</div>';
+echo '    <div class="stat-card__value">'.format_currency($ticketMedio, $storeCurrency).'</div>';
+echo '    <p class="stat-card__hint">Valor pendente: '.format_currency($pendingValue, $storeCurrency).'</p>';
+echo '  </article>';
+echo '  <article class="stat-card">';
+echo '    <div class="stat-card__label"><i class="fa-solid fa-ban" aria-hidden="true"></i> Cancelamentos</div>';
+echo '    <div class="stat-card__value">'.$canceledOrders.'</div>';
+echo '    <p class="stat-card__hint">Valor: '.format_currency($canceledValue, $storeCurrency).'</p>';
+echo '  </article>';
 if ($costFeatureEnabled) {
-  echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Custos do período</span><span class="font-semibold">'.format_currency($costSummary, $storeCurrency).'</span></div>';
-  echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Lucro estimado</span><span class="font-semibold">'.format_currency($profitSummary, $storeCurrency).'</span></div>';
-  echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Margem</span><span class="font-semibold">'.number_format($marginSummary, 1, ',', '.').'%</span></div>';
+  echo '  <article class="stat-card">';
+  echo '    <div class="stat-card__label"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i> Custos do período</div>';
+  echo '    <div class="stat-card__value">'.format_currency($costSummary, $storeCurrency).'</div>';
+  echo '    <p class="stat-card__hint">Margem: '.number_format($marginSummary, 1, ',', '.').'%</p>';
+  echo '  </article>';
+  echo '  <article class="stat-card stat-card--success">';
+  echo '    <div class="stat-card__label"><i class="fa-solid fa-sack-dollar" aria-hidden="true"></i> Lucro estimado</div>';
+  echo '    <div class="stat-card__value">'.format_currency($profitSummary, $storeCurrency).'</div>';
+  echo '    <p class="stat-card__hint">Considerando custos preenchidos.</p>';
+  echo '  </article>';
 }
-echo '  </div></div>';
 echo '</div>';
 
-echo '<div class="grid md:grid-cols-2 gap-3 mb-4">';
-echo '  <div class="card"><div class="card-title">Por status</div><div class="p-3"><table class="table text-sm"><thead><tr><th>Status</th><th>Pedidos</th><th>Total</th></tr></thead><tbody>';
+echo '<div class="stats-grid">';
+echo '  <article class="card">';
+echo '    <div class="card-title">Por status</div>';
+echo '    <div class="table-responsive"><table class="data-table"><thead><tr><th>Status</th><th>Pedidos</th><th>Total</th></tr></thead><tbody>';
 if ($statusBreakdown) {
   foreach ($statusBreakdown as $row) {
     $count = (int)$row['total_orders'];
@@ -224,11 +249,14 @@ if ($statusBreakdown) {
     echo '<tr><td>'.reports_status_badge($row['status'] ?? '').'</td><td>'.$count.'</td><td>'.format_currency($amount, $storeCurrency).'</td></tr>';
   }
 } else {
-  echo '<tr><td colspan="3" class="text-center text-gray-400">Sem pedidos no período.</td></tr>';
+  echo '<tr><td colspan="3" class="hint">Sem pedidos no período.</td></tr>';
 }
-echo '  </tbody></table></div></div>';
+echo '    </tbody></table></div>';
+echo '  </article>';
 
-echo '  <div class="card"><div class="card-title">Por método de pagamento</div><div class="p-3"><table class="table text-sm"><thead><tr><th>Método</th><th>Pedidos</th><th>Total</th></tr></thead><tbody>';
+echo '  <article class="card">';
+echo '    <div class="card-title">Por método de pagamento</div>';
+echo '    <div class="table-responsive"><table class="data-table"><thead><tr><th>Método</th><th>Pedidos</th><th>Total</th></tr></thead><tbody>';
 if ($paymentBreakdown) {
   foreach ($paymentBreakdown as $row) {
     $method = $row['payment_method'] ?? 'Indefinido';
@@ -237,12 +265,15 @@ if ($paymentBreakdown) {
     echo '<tr><td>'.sanitize_html($method).'</td><td>'.$count.'</td><td>'.format_currency($amount, $storeCurrency).'</td></tr>';
   }
 } else {
-  echo '<tr><td colspan="3" class="text-center text-gray-400">Sem registros no período.</td></tr>';
+  echo '<tr><td colspan="3" class="hint">Sem registros no período.</td></tr>';
 }
-echo '  </tbody></table></div></div>';
+echo '    </tbody></table></div>';
+echo '  </article>';
 echo '</div>';
 
-echo '<div class="card mb-6"><div class="card-title">Pedidos recentes no período</div><div class="p-3 overflow-x-auto"><table class="table"><thead><tr><th>#</th><th>Cliente</th><th>Valor</th><th>Pagamento</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>';
+echo '<div class="card">';
+echo '  <div class="card-title">Pedidos recentes no período</div>';
+echo '  <div class="table-responsive"><table class="data-table"><thead><tr><th>#</th><th>Cliente</th><th>Valor</th><th>Pagamento</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>';
 if ($recentOrders) {
   foreach ($recentOrders as $row) {
     $orderId = (int)$row['id'];
@@ -256,12 +287,13 @@ if ($recentOrders) {
     echo '<td>'.sanitize_html($row['payment_method'] ?? '-').'</td>';
     echo '<td>'.reports_status_badge($row['status'] ?? '').'</td>';
     echo '<td>'.sanitize_html(format_datetime($row['created_at'], 'd/m/Y H:i')).'</td>';
-    echo '<td><a class="btn btn-ghost btn-sm" href="orders.php?action=view&id='.$orderId.'"><i class="fa-solid fa-eye"></i></a></td>';
+    echo '<td><a class="btn btn-ghost btn-sm" href="orders.php?action=view&id='.$orderId.'"><i class="fa-solid fa-eye" aria-hidden="true"></i></a></td>';
     echo '</tr>';
   }
 } else {
-  echo '<tr><td colspan="7" class="text-center text-gray-400">Nenhum pedido encontrado no período.</td></tr>';
+  echo '<tr><td colspan="7" class="hint">Nenhum pedido encontrado no período.</td></tr>';
 }
-echo '</tbody></table></div></div>';
+echo '  </tbody></table></div>';
+echo '</div>';
 
 admin_footer();
