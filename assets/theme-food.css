@@ -538,6 +538,7 @@ body.theme-food {
     font-size: 1.12rem;
     font-weight: 600;
     color: var(--food-brown);
+    word-break: break-word;
 }
 
 .food-product-card__title a:hover {
@@ -547,6 +548,7 @@ body.theme-food {
 .food-product-card__text {
     font-size: 0.9rem;
     color: rgba(92, 58, 30, 0.74);
+    word-break: break-word;
 }
 
 .food-product-card__price {

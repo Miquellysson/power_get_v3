@@ -47,6 +47,7 @@ $quickLinks = [
   ['icon'=>'fa-users','label'=>'Clientes','desc'=>'Perfis e contatos','href'=>'customers.php'],
   ['icon'=>'fa-user-shield','label'=>'Usuários','desc'=>'Time e permissões','href'=>'users.php'],
   ['icon'=>'fa-sliders','label'=>'Configurações','desc'=>'Pagamentos e layout','href'=>'settings.php?tab=general'],
+  ['icon'=>'fa-right-from-bracket','label'=>'Sair', 'desc'=>'Encerrar sessão', 'href'=>'admin.php?route=logout'],
 ];
 
 $seoScore = 86;
@@ -98,39 +99,6 @@ echo '  <article class="stat-card"><div class="stat-card__label"><i class="fa-so
 echo '  <article class="stat-card"><div class="stat-card__label"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Categorias</div><div class="stat-card__value">'.number_format($counts['categories']).'</div><p class="stat-card__hint">Coleções publicadas.</p></article>';
 echo '</section>';
 
-echo '<section class="seo-grid">';
-echo '  <article class="seo-card seo-card--score">';
-echo '    <div class="seo-card__header"><div><h2>SEO Score</h2><p>'.$seoTrend.'</p></div><span class="seo-score">'.$seoScore.'</span></div>';
-echo '    <div class="seo-meta">';
-echo '      <div><span>Meta title</span><strong>'.$metaTitleLength.'/60</strong></div>';
-echo '      <div><span>Meta description</span><strong>'.$metaDescriptionLength.'/160</strong></div>';
-echo '      <div><span>Keywords</span><strong>'.$metaKeywords.'</strong></div>';
-echo '    </div>';
-echo '    <div class="seo-progress">';
-echo '      <span>Visibilidade orgânica</span>';
-echo '      <div class="progress-bar"><span style="width: '.min(100, $seoScore).'%"></span></div>';
-echo '    </div>';
-echo '  </article>';
-echo '  <article class="seo-card">';
-echo '    <div class="seo-card__header"><div><h2>Checklist SEO</h2><p>Verificações automáticas</p></div></div>';
-echo '    <ul class="seo-checklist">';
-foreach ($seoChecks as $check) {
-  $statusClass = $check['status'] === 'ok' ? 'ok' : ($check['status'] === 'warn' ? 'warn' : 'danger');
-  echo '  <li class="'.$statusClass.'"><span>'.sanitize_html($check['label']).'</span><small>'.sanitize_html($check['detail']).'</small></li>';
-}
-echo '    </ul>';
-echo '  </article>';
-echo '  <article class="seo-card">';
-echo '    <div class="seo-card__header"><div><h2>Fontes de tráfego</h2><p>Últimos 7 dias</p></div></div>';
-echo '    <div class="table-responsive"><table class="data-table">';
-echo '      <thead><tr><th>Canal</th><th>Crescimento</th><th>Visitas</th></tr></thead><tbody>';
-foreach ($trafegoSources as $source) {
-  echo '      <tr><td>'.sanitize_html($source['canal']).'</td><td>'.$source['crescimento'].'</td><td>'.number_format($source['trafego']).'</td></tr>';
-}
-echo '      </tbody></table></div>';
-echo '  </article>';
-echo '</section>';
-
 // Últimos pedidos
 echo '<div class="card">';
 echo '  <div class="card-title">Últimos pedidos</div>';
@@ -158,6 +126,39 @@ try{
   echo '<div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i>Erro ao carregar pedidos recentes.</div>';
 }
 echo '</div>';
+
+echo '<section class="seo-grid">';
+echo '  <article class="seo-card seo-card--score">';
+echo '    <div class="seo-card__header"><div><h2>SEO Score</h2><p>'.$seoTrend.'</p></div><span class="seo-score">'.$seoScore.'</span></div>';
+echo '    <div class="seo-meta">';
+echo '      <div><span>Meta title</span><strong>'.$metaTitleLength.'/60</strong></div>';
+echo '      <div><span>Meta description</span><strong>'.$metaDescriptionLength.'/160</strong></div>';
+echo '      <div><span>Keywords</span><strong>'.$metaKeywords.'</strong></div>';
+echo '    </div>';
+  echo '    <div class="seo-progress">';
+  echo '      <span>Visibilidade orgânica</span>';
+  echo '      <div class="progress-bar"><span style="width: '.min(100, $seoScore).'%"></span></div>';
+  echo '    </div>';
+echo '  </article>';
+echo '  <article class="seo-card">';
+echo '    <div class="seo-card__header"><div><h2>Checklist SEO</h2><p>Verificações automáticas</p></div></div>';
+echo '    <ul class="seo-checklist">';
+foreach ($seoChecks as $check) {
+  $statusClass = $check['status'] === 'ok' ? 'ok' : ($check['status'] === 'warn' ? 'warn' : 'danger');
+  echo '  <li class="'.$statusClass.'"><span>'.sanitize_html($check['label']).'</span><small>'.sanitize_html($check['detail']).'</small></li>';
+}
+echo '    </ul>';
+echo '  </article>';
+echo '  <article class="seo-card">';
+echo '    <div class="seo-card__header"><div><h2>Fontes de tráfego</h2><p>Últimos 7 dias</p></div></div>';
+echo '    <div class="table-responsive"><table class="data-table">';
+echo '      <thead><tr><th>Canal</th><th>Crescimento</th><th>Visitas</th></tr></thead><tbody>';
+foreach ($trafegoSources as $source) {
+  echo '      <tr><td>'.sanitize_html($source['canal']).'</td><td>'.$source['crescimento'].'</td><td>'.number_format($source['trafego']).'</td></tr>';
+}
+echo '      </tbody></table></div>';
+echo '  </article>';
+echo '</section>';
 
 $footerStoreName = setting_get('store_name', cfg()['store']['name'] ?? 'Sua Loja');
 $GLOBALS['_ADMIN_CUSTOM_FOOTER'] = '© 2025 ' . $footerStoreName . ' — todos os direitos reservados.';

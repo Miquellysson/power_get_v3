@@ -175,11 +175,26 @@ if ($action==='bulk_delete' && $_SERVER['REQUEST_METHOD']==='POST') {
 }
 
 admin_header('Categorias');
+
+echo '<section class="page-header">';
+echo '  <div class="page-header__content">';
+echo '    <p class="page-eyebrow">Catálogo</p>';
+echo '    <h1>Categorias da vitrine</h1>';
+echo '    <p class="page-subtitle">Organize vitrines, coleções e ícones exibidos na home.</p>';
+echo '  </div>';
+echo '  <div class="page-header__actions">';
+if ($canManageCategories) {
+  echo '    <a class="btn btn-primary" href="categories.php?action=new"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Nova categoria</span></a>';
+}
+echo '    <a class="btn btn-ghost" href="products.php"><i class="fa-solid fa-pills" aria-hidden="true"></i><span>Produtos</span></a>';
+echo '  </div>';
+echo '</section>';
+
 if (!$canManageCategories) {
-  echo '<div class="alert alert-warning mx-auto max-w-3xl mb-4"><i class="fa-solid fa-circle-info mr-2"></i>Você possui acesso somente leitura nesta seção.</div>';
+  echo '<div class="alert alert-warning"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Você possui acesso somente leitura nesta seção.</span></div>';
 }
 if (!$categoryIconsSupported && $currentAdminIsSuper) {
-  echo '<div class="alert alert-warning mx-auto max-w-3xl mb-4"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Para definir ícones das categorias, execute a migração que adiciona a coluna <code>icon</code> em <code>categories</code>. Veja instruções em <strong>MIGRATIONS.md</strong>.</div>';
+  echo '<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Para definir ícones, execute a migração que adiciona a coluna <code>icon</code> na tabela <code>categories</code> (veja o arquivo <strong>MIGRATIONS.md</strong>).</span></div>';
 }
 $q = trim((string)($_GET['q'] ?? ''));
 $w=' WHERE 1=1 '; $p=[];
@@ -190,17 +205,17 @@ echo '<div class="card"><div class="card-title">Categorias</div>';
 echo '<div class="card-toolbar">';
 echo '  <form class="search-form" method="get">';
 echo '    <input class="input" name="q" value="'.sanitize_html($q).'" placeholder="Buscar por nome">';
-echo '    <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-magnifying-glass mr-2"></i>Buscar</button>';
+echo '    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Buscar</span></button>';
 echo '  </form>';
 echo '  <div class="toolbar-actions">';
 if ($canManageCategories) {
-  echo '    <a class="btn btn-alt btn-sm" href="categories.php?action=new"><i class="fa-solid fa-plus mr-2"></i>Nova categoria</a>';
+  echo '    <a class="btn btn-alt" href="categories.php?action=new"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Nova categoria</span></a>';
 }
 echo '  </div>';
 echo '</div>';
 echo '<form method="post" action="categories.php?action=bulk_delete">';
 echo '  <input type="hidden" name="csrf" value="'.csrf_token().'">';
-echo '<div class="p-3 overflow-x-auto"><table class="table"><thead><tr>';
+echo '<div class="table-responsive"><table class="data-table"><thead><tr>';
 if ($currentAdminIsSuper) {
   echo '<th><input type="checkbox" id="checkAllCategories"></th>';
 } else {
