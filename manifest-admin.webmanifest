@@ -1,0 +1,15 @@
+{
+  "name": "Painel Get Power",
+  "short_name": "Get Power Admin",
+  "start_url": "./admin.php?route=dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#101522",
+  "theme_color": "#2563EB",
+  "description": "Painel administrativo do Get Power Research com suporte a modo claro/escuro.",
+  "icons": [
+    { "src": "assets/icons/admin-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icons/admin-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

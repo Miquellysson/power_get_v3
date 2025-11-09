@@ -420,6 +420,114 @@ body.admin-shell{
 .settings-panel ::placeholder{
   color:rgba(15,23,42,.5);
 }
+.quick-links{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:1rem;
+  margin-bottom:1.5rem;
+}
+.quick-link{
+  display:flex;
+  align-items:center;
+  gap:.85rem;
+  padding:1rem 1.1rem;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:var(--bg-elevated);
+  color:var(--fg);
+  text-decoration:none;
+  transition:transform var(--transition),border var(--transition),box-shadow var(--transition),color var(--transition);
+  box-shadow:0 20px 40px -32px rgba(15,23,42,.45);
+}
+.quick-link:hover{
+  border-color:var(--primary);
+  color:var(--primary);
+  transform:translateY(-3px);
+}
+.quick-link .icon{
+  width:48px;
+  height:48px;
+  border-radius:16px;
+  background:rgba(37,99,235,.12);
+  color:var(--primary);
+  display:grid;
+  place-items:center;
+  font-size:1.1rem;
+  flex-shrink:0;
+}
+.tab-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.6rem;
+  padding-bottom:1rem;
+  margin-bottom:1.5rem;
+  border-bottom:1px solid var(--border);
+}
+.tab-controls a{
+  text-decoration:none;
+  padding:.55rem 1rem;
+  border-radius:999px;
+  border:1px solid var(--border);
+  color:var(--muted);
+  font-weight:600;
+  transition:background var(--transition),color var(--transition),border var(--transition),box-shadow var(--transition);
+  white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+}
+.tab-controls a.active{
+  background:var(--primary);
+  color:#fff;
+  border-color:var(--primary);
+  box-shadow:0 10px 30px -20px rgba(37,99,235,.7);
+}
+.settings-grid{
+  display:flex;
+  flex-direction:column;
+  gap:1.5rem;
+}
+.brand-card{
+  background:var(--bg-elevated);
+  border:1px solid var(--border);
+  border-radius:var(--card-radius);
+}
+.settings-form{
+  display:flex;
+  flex-direction:column;
+  gap:1.25rem;
+}
+.alert{
+  display:flex;
+  align-items:flex-start;
+  gap:.6rem;
+  border-radius:12px;
+  padding:.85rem 1rem;
+  border:1px solid var(--border);
+  font-size:.9rem;
+}
+.alert i{
+  margin-top:.15rem;
+}
+.alert-warning{
+  background:rgba(234,179,8,.12);
+  border-color:rgba(234,179,8,.45);
+  color:#b45309;
+}
+.alert-success{
+  background:rgba(15,157,88,.12);
+  border-color:rgba(15,157,88,.35);
+  color:#0f9d58;
+}
+.alert-error{
+  background:rgba(220,38,38,.12);
+  border-color:rgba(220,38,38,.35);
+  color:#b91c1c;
+}
+.brand-card hr{
+  border-color:var(--border);
+  margin:1.25rem 0;
+}
 .table-pagination{
   display:flex;
   align-items:center;

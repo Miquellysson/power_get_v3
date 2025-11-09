@@ -1292,6 +1292,10 @@ $homeSectionsVisibility = home_sections_visibility();
 $headerLinksCurrent = navigation_links_raw('header');
 $footerLinksCurrent = navigation_links_raw('footer');
 $customPagesCurrent = custom_pages_list();
+$cacheBustNotice = $_SESSION['cache_bust_notice'] ?? '';
+$cacheBustError = $_SESSION['cache_bust_error'] ?? '';
+unset($_SESSION['cache_bust_notice'], $_SESSION['cache_bust_error']);
+$cacheBustCurrentToken = function_exists('cache_bust_current_token') ? cache_bust_current_token() : '';
 
 $checkoutCountriesCurrent = checkout_get_countries();
 $checkoutStatesCurrent = checkout_get_states();
@@ -1543,10 +1547,6 @@ if ($storeLogoCurrent) {
   $logoPreviewPath = function_exists('cache_busted_url') ? cache_busted_url($storeLogoCurrent) : $storeLogoCurrent;
   $storeLogoPreviewUrl = '/' . ltrim($logoPreviewPath, '/');
 }
-$cacheBustNotice = $_SESSION['cache_bust_notice'] ?? '';
-$cacheBustError = $_SESSION['cache_bust_error'] ?? '';
-unset($_SESSION['cache_bust_notice'], $_SESSION['cache_bust_error']);
-$cacheBustCurrentToken = function_exists('cache_bust_current_token') ? cache_bust_current_token() : '';
 $cityTextareaValue = '';
 if ($isSuperAdmin) {
   $cityTextareaLines = [];
