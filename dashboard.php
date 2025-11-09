@@ -49,67 +49,50 @@ $quickLinks = [
   ['icon'=>'fa-sliders','label'=>'Configurações','desc'=>'Pagamentos, layout e integrações','href'=>'settings.php?tab=general'],
 ];
 
-echo '<section class="dashboard-hero">';
-echo '  <div class="flex flex-col gap-4">';
-echo '    <div>';
-echo '      <h1 class="text-2xl md:text-3xl font-bold">Visão geral da loja</h1>';
-echo '      <p class="text-white/90 text-sm md:text-base mt-1">Monitore pedidos, catálogo e configurações em um só lugar.</p>';
-echo '    </div>';
-echo '    <div class="quick-links">';
-foreach ($quickLinks as $link) {
-  echo '      <a class="quick-link" href="'.$link['href'].'">';
-  echo '        <span class="icon"><i class="fa-solid '.$link['icon'].'"></i></span>';
-  echo '        <span>';
-  echo '          <div class="font-semibold">'.$link['label'].'</div>';
-  echo '          <div class="text-xs opacity-80">'.$link['desc'].'</div>';
-  echo '        </span>';
-  echo '      </a>';
-}
-echo '    </div>';
+echo '<section class="page-header">';
+echo '  <div class="page-header__content">';
+echo '    <p class="page-eyebrow">Painel Administrativo</p>';
+echo '    <h1>Visão geral da loja</h1>';
+echo '    <p class="page-subtitle">Monitore pedidos, catálogo, clientes e indicadores em um só lugar.</p>';
+echo '  </div>';
+echo '  <div class="page-header__actions">';
+echo '    <a class="btn btn-ghost" href="settings.php?tab=general"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span>Configurações</span></a>';
+echo '    <a class="btn btn-primary" href="orders.php"><i class="fa-solid fa-receipt" aria-hidden="true"></i><span>Ver pedidos</span></a>';
 echo '  </div>';
 echo '</section>';
 
-echo '<section class="kpis">';
-echo '  <div class="kpi">';
-echo '    <div class="kpi-header"><div class="icon"><i class="fa-solid fa-receipt"></i></div><div>';
-echo '      <div class="lbl">Pedidos</div>';
-echo '      <div class="val">'.$counts['orders'].'</div>';
-echo '    </div></div>';
-echo '    <div class="text-xs text-gray-500">Total de pedidos registrados</div>';
-echo '  </div>';
+echo '<div class="quick-links">';
+foreach ($quickLinks as $link) {
+  echo '<a class="quick-link" href="'.sanitize_html($link['href']).'">';
+  echo '  <span class="icon"><i class="fa-solid '.sanitize_html($link['icon']).'" aria-hidden="true"></i></span>';
+  echo '  <span><span class="quick-link__title">'.sanitize_html($link['label']).'</span><span class="quick-link__desc">'.sanitize_html($link['desc']).'</span></span>';
+  echo '</a>';
+}
+echo '</div>';
 
-echo '  <div class="kpi">';
-echo '    <div class="kpi-header"><div class="icon"><i class="fa-solid fa-users"></i></div><div>';
-echo '      <div class="lbl">Clientes</div>';
-echo '      <div class="val">'.$counts['customers'].'</div>';
-echo '    </div></div>';
-echo '    <div class="text-xs text-gray-500">Clientes cadastrados no sistema</div>';
-echo '  </div>';
-
-echo '  <div class="kpi">';
-echo '    <div class="kpi-header"><div class="icon"><i class="fa-solid fa-box-open"></i></div><div>';
-echo '      <div class="lbl">Produtos ativos</div>';
-echo '      <div class="val">'.$counts['products'].'</div>';
-echo '    </div></div>';
-echo '    <div class="text-xs text-gray-500">Itens visíveis na loja</div>';
-echo '  </div>';
-
-echo '  <div class="kpi">';
-echo '    <div class="kpi-header"><div class="icon"><i class="fa-solid fa-layer-group"></i></div><div>';
-echo '      <div class="lbl">Categorias</div>';
-echo '      <div class="val">'.$counts['categories'].'</div>';
-echo '    </div></div>';
-echo '    <div class="text-xs text-gray-500">Coleções publicadas</div>';
-echo '  </div>';
+$statCards = [
+  ['icon'=>'fa-receipt','label'=>'Pedidos','value'=>$counts['orders'],'hint'=>'Total de pedidos registrados.'],
+  ['icon'=>'fa-users','label'=>'Clientes','value'=>$counts['customers'],'hint'=>'Clientes cadastrados.'],
+  ['icon'=>'fa-box-open','label'=>'Produtos ativos','value'=>$counts['products'],'hint'=>'Itens disponíveis na loja.'],
+  ['icon'=>'fa-layer-group','label'=>'Categorias','value'=>$counts['categories'],'hint'=>'Coleções publicadas.'],
+];
+echo '<section class="stats-grid">';
+foreach ($statCards as $card) {
+  echo '<article class="stat-card">';
+  echo '  <div class="stat-card__label"><i class="fa-solid '.sanitize_html($card['icon']).'" aria-hidden="true"></i> '.sanitize_html($card['label']).'</div>';
+  echo '  <div class="stat-card__value">'.number_format((int)$card['value'], 0, ',', '.').'</div>';
+  echo '  <p class="stat-card__hint">'.sanitize_html($card['hint']).'</p>';
+  echo '</article>';
+}
 echo '</section>';
 
 // Últimos pedidos
 echo '<div class="card">';
 echo '  <div class="card-title">Últimos pedidos</div>';
-echo '  <div class="card-body overflow-x-auto">';
 try{
   $st=$pdo->query("SELECT o.id,o.total,o.currency,o.status,o.created_at,c.name AS customer_name FROM orders o LEFT JOIN customers c ON c.id=o.customer_id ORDER BY o.id DESC LIMIT 10");
-  echo '<table class="table"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Status</th><th>Quando</th><th></th></tr></thead><tbody>';
+  echo '  <div class="table-responsive">';
+  echo '  <table class="data-table"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Status</th><th>Quando</th><th></th></tr></thead><tbody>';
   foreach($st as $row){
     $badge = '<span class="badge">'.sanitize_html($row['status']).'</span>';
     if ($row['status']==='paid') $badge='<span class="badge ok">Pago</span>';
@@ -122,14 +105,13 @@ try{
     echo '<td>'.format_currency((float)$row['total'], $rowCurrency).'</td>';
     echo '<td>'.$badge.'</td>';
     echo '<td>'.sanitize_html($row['created_at'] ?? '').'</td>';
-    echo '<td><a class="btn btn-ghost" href="orders.php?action=view&id='.(int)$row['id'].'"><i class="fa-solid fa-eye"></i> Ver</a></td>';
+    echo '<td><a class="btn btn-ghost" href="orders.php?action=view&id='.(int)$row['id'].'"><i class="fa-solid fa-eye" aria-hidden="true"></i><span>Ver</span></a></td>';
     echo '</tr>';
   }
-  echo '</tbody></table>';
+  echo '</tbody></table></div>';
 }catch(Throwable $e){
   echo '<div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i>Erro ao carregar pedidos recentes.</div>';
 }
-echo '  </div>';
 echo '</div>';
 
 admin_footer();

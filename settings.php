@@ -1381,73 +1381,98 @@ if ($isSuperAdmin) {
 }
 
 admin_header('Configurações');
-$heroStartColor = adjust_color_brightness($themeColorCurrent, 0.12);
-$heroEndColor = adjust_color_brightness($themeColorCurrent, -0.18);
-$dashboardHeroStyle = 'background: linear-gradient(135deg, '.$heroStartColor.', '.$heroEndColor.');';
 ?>
-<section class="space-y-6">
-  <div class="dashboard-hero" style="<?= sanitize_html($dashboardHeroStyle); ?>">
-    <div class="flex flex-col gap-3">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-bold">Configurações da plataforma</h1>
-        <p class="text-white/90 text-sm md:text-base mt-1">Ajuste rapidamente informações da loja, pagamentos e layout da home.</p>
-      </div>
-      <div class="quick-links">
-        <a class="quick-link" href="settings.php?tab=general">
-          <span class="icon"><i class="fa-solid fa-store"></i></span>
-          <span><div class="font-semibold">Dados gerais</div><div class="text-xs opacity-80">Logo, contatos e textos da vitrine</div></span>
-        </a>
-        <a class="quick-link" href="settings.php?tab=payments">
-          <span class="icon"><i class="fa-solid fa-credit-card"></i></span>
-          <span><div class="font-semibold">Pagamentos</div><div class="text-xs opacity-80">Formas de pagamento e instruções</div></span>
-        </a>
-        <a class="quick-link" href="settings.php?tab=checkout">
-          <span class="icon"><i class="fa-solid fa-truck-fast"></i></span>
-          <span><div class="font-semibold">Checkout</div><div class="text-xs opacity-80">Campos, países e métodos de entrega</div></span>
-        </a>
-        <a class="quick-link" href="settings.php?tab=social">
-          <span class="icon"><i class="fa-brands fa-instagram"></i></span>
-          <span><div class="font-semibold">Redes sociais</div><div class="text-xs opacity-80">Links do Instagram e Facebook</div></span>
-        </a>
-        <?php if ($isSuperAdmin): ?>
-        <a class="quick-link" href="settings.php?tab=theme">
-          <span class="icon"><i class="fa-solid fa-palette"></i></span>
-          <span><div class="font-semibold">Temas</div><div class="text-xs opacity-80">Escolha e personalize o tema da vitrine</div></span>
-        </a>
-        <a class="quick-link" href="settings.php?tab=costs">
-          <span class="icon"><i class="fa-solid fa-scale-balanced"></i></span>
-          <span><div class="font-semibold">Gestão de custos</div><div class="text-xs opacity-80">Defina custos e margens por produto</div></span>
-        </a>
-        <a class="quick-link" href="settings.php?tab=experience">
-          <span class="icon"><i class="fa-solid fa-mobile-screen-button"></i></span>
-          <span><div class="font-semibold">Experiência</div><div class="text-xs opacity-80">Banner PWA e visibilidade da home</div></span>
-        </a>
-        <a class="quick-link" href="settings.php?tab=navigation">
-          <span class="icon"><i class="fa-solid fa-bars-staggered"></i></span>
-          <span><div class="font-semibold">Menus & páginas</div><div class="text-xs opacity-80">Gerencie navegação e páginas extras</div></span>
-        </a>
-        <?php endif; ?>
-        <a class="quick-link" href="settings.php?tab=builder">
-          <span class="icon"><i class="fa-solid fa-paintbrush"></i></span>
-          <span><div class="font-semibold">Editor da home</div><div class="text-xs opacity-80">Monte a página inicial em tempo real</div></span>
-        </a>
-        <a class="quick-link" href="dashboard.php">
-          <span class="icon"><i class="fa-solid fa-gauge-high"></i></span>
-          <span><div class="font-semibold">Voltar ao dashboard</div><div class="text-xs opacity-80">Resumo da operação e pedidos</div></span>
-        </a>
-      </div>
-    </div>
+<section class="page-header">
+  <div class="page-header__content">
+    <p class="page-eyebrow">Painel Administrativo</p>
+    <h1>Configurações da plataforma</h1>
+    <p class="page-subtitle">Ajuste rapidamente informações da loja, pagamentos e layout da home.</p>
   </div>
+  <div class="page-header__actions">
+    <a class="btn btn-ghost" href="dashboard.php">
+      <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+      <span>Voltar ao dashboard</span>
+    </a>
+  </div>
+</section>
 
-  <div class="tab-controls">
+<div class="quick-links">
+  <a class="quick-link" href="settings.php?tab=general">
+    <span class="icon"><i class="fa-solid fa-store" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Dados gerais</span>
+      <span class="quick-link__desc">Logo, contatos e textos da vitrine</span>
+    </span>
+  </a>
+  <a class="quick-link" href="settings.php?tab=payments">
+    <span class="icon"><i class="fa-solid fa-credit-card" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Pagamentos</span>
+      <span class="quick-link__desc">Formas de pagamento e instruções</span>
+    </span>
+  </a>
+  <a class="quick-link" href="settings.php?tab=checkout">
+    <span class="icon"><i class="fa-solid fa-truck-fast" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Checkout</span>
+      <span class="quick-link__desc">Campos, países e métodos de entrega</span>
+    </span>
+  </a>
+  <a class="quick-link" href="settings.php?tab=social">
+    <span class="icon"><i class="fa-brands fa-instagram" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Redes sociais</span>
+      <span class="quick-link__desc">Links do Instagram e Facebook</span>
+    </span>
+  </a>
+  <?php if ($isSuperAdmin): ?>
+  <a class="quick-link" href="settings.php?tab=theme">
+    <span class="icon"><i class="fa-solid fa-palette" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Temas</span>
+      <span class="quick-link__desc">Escolha e personalize o tema da vitrine</span>
+    </span>
+  </a>
+  <a class="quick-link" href="settings.php?tab=costs">
+    <span class="icon"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Gestão de custos</span>
+      <span class="quick-link__desc">Defina custos e margens por produto</span>
+    </span>
+  </a>
+  <a class="quick-link" href="settings.php?tab=experience">
+    <span class="icon"><i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Experiência</span>
+      <span class="quick-link__desc">Banner PWA e visibilidade da home</span>
+    </span>
+  </a>
+  <a class="quick-link" href="settings.php?tab=navigation">
+    <span class="icon"><i class="fa-solid fa-bars-staggered" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Menus & páginas</span>
+      <span class="quick-link__desc">Gerencie navegação e páginas extras</span>
+    </span>
+  </a>
+  <?php endif; ?>
+  <a class="quick-link" href="settings.php?tab=builder">
+    <span class="icon"><i class="fa-solid fa-paintbrush" aria-hidden="true"></i></span>
+    <span>
+      <span class="quick-link__title">Editor da home</span>
+      <span class="quick-link__desc">Monte a página inicial em tempo real</span>
+    </span>
+  </a>
+</div>
+
+<div class="tab-controls">
     <?php foreach ($sections as $section): ?>
       <a href="settings.php?tab=<?= $section['key']; ?>" class="<?= $tab === $section['key'] ? 'active' : ''; ?>">
-        <i class="fa-solid <?= $section['icon']; ?> mr-2"></i><?= sanitize_html($section['title']); ?>
+        <i class="fa-solid <?= $section['icon']; ?>" aria-hidden="true"></i><?= sanitize_html($section['title']); ?>
       </a>
     <?php endforeach; ?>
-  </div>
+</div>
 
-  <div class="settings-grid">
+<div class="settings-grid">
   <div data-tab-panel="general" class="card brand-card <?= $tab === 'general' ? '' : 'hidden'; ?>">
     <div class="card-body settings-form">
     <h2 class="text-lg font-semibold mb-1">Informações da Loja</h2>
@@ -1571,7 +1596,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
         </div>
       <?php endif; ?>
       <fieldset class="space-y-6" <?= $canEditSettings ? '' : 'disabled'; ?>>
-      <div class="grid md:grid-cols-2 gap-4">
+      <div class="field-grid two">
         <div>
           <label class="block text-sm font-medium mb-1">Nome da loja</label>
           <input class="input w-full" name="store_name" value="<?= sanitize_html($storeNameCurrent); ?>" maxlength="120" required>
@@ -1585,11 +1610,11 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <label class="block text-sm font-medium mb-1">Telefone</label>
           <input class="input w-full" name="store_phone" value="<?= sanitize_html($storePhoneCurrent); ?>" maxlength="60" placeholder="+1 (305) 555-0123">
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Endereço</label>
           <textarea class="textarea w-full" name="store_address" rows="2" maxlength="240" placeholder="Rua, bairro, cidade, estado"><?= sanitize_html($storeAddressCurrent); ?></textarea>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Logo da loja (PNG/JPG/WEBP · máx 2MB)</label>
           <?php if ($storeLogoCurrent): ?>
             <div class="mb-3"><img src="<?= sanitize_html($storeLogoPreviewUrl ?: $storeLogoCurrent); ?>" alt="Logo atual" class="h-16 object-contain rounded-md border border-gray-200 p-2 bg-white"></div>
@@ -1603,13 +1628,13 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
       <hr class="border-gray-200">
 
       <h3 class="text-md font-semibold">Texto do destaque na Home</h3>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div class="md:col-span-2">
+      <div class="field-grid two">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Título principal</label>
           <input class="input w-full" name="home_hero_title" maxlength="160" value="<?= sanitize_html($heroTitleCurrent); ?>" required>
           <p class="text-xs text-gray-500 mt-1">Texto destacado exibido em negrito (ex.: "Tudo para sua saúde").</p>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Subtítulo</label>
           <textarea class="textarea w-full" name="home_hero_subtitle" rows="2" maxlength="240" required><?= sanitize_html($heroSubtitleCurrent); ?></textarea>
           <p class="text-xs text-gray-500 mt-1">Linha de apoio exibida logo abaixo do título.</p>
@@ -1624,21 +1649,21 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <input class="input w-full" type="color" name="theme_color" value="<?= sanitize_html($themeColorCurrent); ?>">
           <p class="hint mt-1">Usada em navegadores móveis e barras de título.</p>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Google Analytics</label>
           <textarea class="textarea w-full font-mono text-xs" name="google_analytics_code" rows="4" placeholder="Cole aqui o snippet do Google Analytics (ex.: gtag.js)"><?= htmlspecialchars($googleAnalyticsCurrent, ENT_QUOTES, 'UTF-8'); ?></textarea>
           <p class="hint mt-1">Cole o código completo fornecido pelo Google (incluindo &lt;script&gt;). Ele será injetado no &lt;head&gt; da loja.</p>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <h3 class="text-md font-semibold mt-4">Páginas legais</h3>
           <p class="text-xs text-gray-500 mb-2">Edite o conteúdo exibido nas páginas de Política de Privacidade e Política de Reembolso da loja.</p>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Política de privacidade</label>
           <textarea class="textarea w-full h-48 font-mono text-sm" name="privacy_policy_content"><?= htmlspecialchars($privacyPolicyCurrent, ENT_QUOTES, 'UTF-8'); ?></textarea>
           <p class="hint mt-1">Aceita HTML básico (&lt;p&gt;, &lt;ul&gt;, &lt;a&gt;, &lt;strong&gt;...). Será exibida na página “Política de Privacidade”.</p>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Política de reembolso</label>
           <textarea class="textarea w-full h-48 font-mono text-sm" name="refund_policy_content"><?= htmlspecialchars($refundPolicyCurrent, ENT_QUOTES, 'UTF-8'); ?></textarea>
           <p class="hint mt-1">Mesmo formato; exibida na página “Política de Reembolso”.</p>
@@ -1651,26 +1676,26 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <label class="block text-sm font-medium mb-1">Descrição do rodapé</label>
           <textarea class="textarea w-full" name="footer_description" rows="2" maxlength="160"><?= sanitize_html($footerDescriptionCurrent); ?></textarea>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Texto do rodapé</label>
           <textarea class="textarea w-full font-mono text-sm" name="footer_copy" rows="2" maxlength="280"><?= sanitize_html($footerCopyCurrent); ?></textarea>
           <p class="hint mt-1">Suporta placeholders <code>{{year}}</code> e <code>{{store_name}}</code>. Ex.: “© {{year}} {{store_name}}. Todos os direitos reservados.”</p>
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
+      <div class="field-span-2 settings-panel">
         <div class="flex flex-col gap-1">
           <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-clock text-brand-600"></i> Horário de funcionamento</h3>
           <p class="text-xs text-gray-500">Esse horário aparece no topo da loja com o status Aberto/Fechado. Informe o fuso no padrão IANA (ex.: <code>America/Sao_Paulo</code>).</p>
         </div>
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="field-grid two">
           <div>
             <label class="inline-flex items-center gap-2 text-sm font-medium">
               <input type="checkbox" name="store_hours_enabled" value="1" <?= $storeHoursEnabledCurrent ? 'checked' : ''; ?>>
               Exibir status Aberto/Fechado no topo
             </label>
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Texto exibido</label>
             <input class="input w-full" name="store_hours_label" maxlength="160" value="<?= sanitize_html($storeHoursLabelCurrent); ?>" placeholder="Seg a Sex: 09h às 18h (BRT)">
           </div>
@@ -1682,7 +1707,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <label class="block text-sm font-medium mb-1">Fim do expediente</label>
             <input class="input w-full" type="time" name="store_hours_close_time" value="<?= sanitize_html($storeHoursCloseTimeCurrent); ?>" step="60">
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Fuso horário</label>
             <input class="input w-full" name="store_hours_timezone" maxlength="80" value="<?= sanitize_html($storeHoursTimezoneCurrent); ?>" placeholder="America/Sao_Paulo">
             <p class="hint mt-1">Use identificadores IANA para que o cálculo considere horário de verão automaticamente.</p>
@@ -1691,7 +1716,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
       </div>
 
       <?php if ($isSuperAdmin): ?>
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
+      <div class="field-span-2 settings-panel">
         <div class="flex flex-col gap-1">
           <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-database text-brand-600"></i> Importar/Exportar cidades</h3>
           <p class="text-xs text-gray-500">Use o formato <code>PAÍS|ESTADO|CIDADE</code> (ex.: <code>BR|SP|São Paulo</code>). Apenas super administradores podem alterar essa lista.</p>
@@ -1718,7 +1743,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
       <hr class="border-gray-200">
 
       <h3 class="text-md font-semibold">Vitrine de destaques</h3>
-      <div class="grid md:grid-cols-2 gap-4">
+      <div class="field-grid two">
         <div>
           <label class="block text-sm font-medium mb-1">Exibir seção na home</label>
           <select class="select" name="home_featured_enabled">
@@ -1731,7 +1756,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <label class="block text-sm font-medium mb-1">Título da seção</label>
           <input class="input w-full" name="home_featured_title" maxlength="80" value="<?= sanitize_html($featuredTitleCurrent); ?>" placeholder="Ofertas em destaque">
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Descrição de apoio</label>
           <textarea class="textarea w-full" name="home_featured_subtitle" rows="2" maxlength="200"><?= sanitize_html($featuredSubtitleCurrent); ?></textarea>
           <p class="hint mt-1">Ex.: “Seleção especial com preços imperdíveis — de X por Y”.</p>
@@ -1741,22 +1766,22 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <input class="input w-full" name="home_featured_label" maxlength="80" value="<?= sanitize_html($featuredLabelCurrent); ?>" placeholder="Oferta destaque">
           <p class="hint mt-1">Texto pequeno exibido acima do título.</p>
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Título principal (H1)</label>
           <input class="input w-full" name="home_featured_badge_title" maxlength="120" value="<?= sanitize_html($featuredBadgeTitleCurrent); ?>" placeholder="Seleção especial">
         </div>
-        <div class="md:col-span-2">
+        <div class="field-span-2">
           <label class="block text-sm font-medium mb-1">Texto complementar</label>
           <textarea class="textarea w-full" name="home_featured_badge_text" rows="2" maxlength="240"><?= sanitize_html($featuredBadgeTextCurrent); ?></textarea>
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
+      <div class="field-span-2 settings-panel">
         <div class="flex flex-col gap-1">
           <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-envelope text-brand-600"></i> Templates de e-mail</h3>
           <p class="text-xs text-gray-500">Personalize os e-mails enviados para o cliente e para a equipe. Placeholders disponíveis: <code>{{site_name}}</code>, <code>{{store_name}}</code>, <code>{{order_id}}</code>, <code>{{order_number}}</code>, <code>{{order_date}}</code>, <code>{{customer_name}}</code>, <code>{{billing_full_name}}</code>, <code>{{billing_email}}</code>, <code>{{billing_phone}}</code>, <code>{{billing_address_html}}</code>, <code>{{shipping_address_html}}</code>, <code>{{shipping_method}}</code>, <code>{{shipping_method_description}}</code>, <code>{{order_items_rows}}</code>, <code>{{order_items}}</code>, <code>{{order_subtotal}}</code>, <code>{{order_shipping_total}}</code>, <code>{{order_tax_total}}</code>, <code>{{order_discount_total}}</code>, <code>{{order_total}}</code>, <code>{{payment_method}}</code>, <code>{{payment_status}}</code>, <code>{{payment_reference}}</code>, <code>{{track_link}}</code>, <code>{{track_url}}</code>, <code>{{support_email}}</code>, <code>{{customer_note}}</code>, <code>{{admin_order_url}}</code>, <code>{{additional_content}}</code>, <code>{{year}}</code>.</p>
         </div>
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="field-grid two">
           <div>
             <label class="block text-sm font-medium mb-1">Nome do remetente dos e-mails</label>
             <input class="input w-full" name="email_from_name" maxlength="160" value="<?= sanitize_html($emailFromNameCurrent); ?>" placeholder="<?= sanitize_html($storeNameCurrent); ?>">
@@ -1767,31 +1792,31 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <p class="hint mt-1">Esse endereço será exibido no campo “De:” e usado para notificações internas.</p>
           </div>
         </div>
-        <div class="grid md:grid-cols-2 gap-4">
-          <div class="md:col-span-2">
+        <div class="field-grid two">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Assunto (cliente)</label>
             <input class="input w-full" name="email_customer_subject" maxlength="180" value="<?= htmlspecialchars($emailCustomerSubjectCurrent, ENT_QUOTES, 'UTF-8'); ?>">
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Conteúdo (cliente)</label>
             <textarea class="textarea w-full font-mono text-sm h-44" name="email_customer_body"><?= htmlspecialchars($emailCustomerBodyCurrent, ENT_QUOTES, 'UTF-8'); ?></textarea>
             <p class="hint mt-1">Você pode usar HTML básico. Ex.: &lt;p&gt;, &lt;strong&gt;, &lt;ul&gt;.</p>
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Assunto (admin)</label>
             <input class="input w-full" name="email_admin_subject" maxlength="180" value="<?= htmlspecialchars($emailAdminSubjectCurrent, ENT_QUOTES, 'UTF-8'); ?>">
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Conteúdo (admin)</label>
             <textarea class="textarea w-full font-mono text-sm h-44" name="email_admin_body"><?= htmlspecialchars($emailAdminBodyCurrent, ENT_QUOTES, 'UTF-8'); ?></textarea>
           </div>
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white settings-panel">
+      <div class="field-span-2 settings-panel">
         <h3 class="text-md font-semibold mb-2 flex items-center gap-2"><i class="fa-brands fa-whatsapp text-[#25D366]"></i> WhatsApp Flutuante</h3>
         <p class="text-xs text-gray-500 mb-3">Defina o número e a mensagem exibida no botão flutuante da loja. O link abre a conversa direto no WhatsApp.</p>
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="field-grid two">
           <label class="inline-flex items-center gap-2 text-sm font-medium">
             <input type="checkbox" name="whatsapp_enabled" value="1" <?= $whatsappEnabled ? 'checked' : ''; ?>>
             Exibir botão flutuante
@@ -1805,7 +1830,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <label class="block text-sm font-medium mb-1">Texto do botão</label>
             <input class="input w-full" name="whatsapp_button_text" value="<?= sanitize_html($whatsappButtonText); ?>" maxlength="80" placeholder="Fale com nossa equipe">
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Mensagem inicial enviada no WhatsApp</label>
             <textarea class="textarea w-full" name="whatsapp_message" rows="3" maxlength="400"><?= sanitize_html($whatsappMessage); ?></textarea>
             <p class="hint mt-1">Será preenchida automaticamente quando o cliente abrir a conversa.</p>
@@ -1813,11 +1838,11 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white settings-panel">
+      <div class="field-span-2 settings-panel">
         <h3 class="text-md font-semibold mb-2 flex items-center gap-2"><i class="fa-solid fa-mobile-screen-button text-brand-600"></i> Identidade do App/PWA</h3>
         <p class="text-xs text-gray-500 mb-3">Personalize o título da aba, o nome exibido quando instalado e o ícone utilizado pelo aplicativo.</p>
-        <div class="grid md:grid-cols-2 gap-4">
-          <div class="md:col-span-2">
+        <div class="field-grid two">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Título da aba (meta title)</label>
             <input class="input w-full" name="store_meta_title" maxlength="160" value="<?= sanitize_html($metaTitleCurrent); ?>">
             <p class="hint mt-1">Aparece em <code>&lt;title&gt;</code> e no histórico do navegador. Ex.: "<?= sanitize_html($storeNameCurrent ?: 'Get Power Research'); ?> | Loja".</p>
@@ -1850,12 +1875,12 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <h4 class="text-sm font-semibold mb-1">Popup de instalação (Add to Home Screen)</h4>
           <p class="text-xs text-gray-500">Personalize o modal exibido aos usuários ao convidá-los para instalar o app.</p>
         </div>
-        <div class="grid md:grid-cols-2 gap-4">
-          <div class="md:col-span-2">
+        <div class="field-grid two">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Título do popup</label>
             <input class="input w-full" name="a2hs_title" maxlength="160" value="<?= sanitize_html($a2hsTitleCurrent); ?>" placeholder="Instalar App <?= sanitize_html($storeNameCurrent ?: ''); ?>">
           </div>
-          <div class="md:col-span-2">
+          <div class="field-span-2">
             <label class="block text-sm font-medium mb-1">Descrição</label>
             <textarea class="textarea w-full" name="a2hs_subtitle" rows="2" maxlength="240" placeholder="Use nossa experiência completa no seu dispositivo."><?= sanitize_html($a2hsSubtitleCurrent); ?></textarea>
           </div>
@@ -1921,8 +1946,8 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
       <form method="post" enctype="multipart/form-data" action="settings.php?tab=theme&action=save_theme" class="space-y-6">
         <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
         <fieldset class="space-y-6">
-          <div class="grid md:grid-cols-2 gap-4">
-            <div class="md:col-span-2">
+          <div class="field-grid two">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Tema ativo</label>
               <select class="select w-full" name="store_theme">
                 <?php foreach ($themeOptionsList as $themeKey => $themeLabel): ?>
@@ -1938,7 +1963,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-font text-brand-600"></i> Fonte das categorias</h3>
               <p class="text-xs text-gray-500">Escolha a família tipográfica utilizada nos títulos das categorias exibidos na vitrine. Essa opção afeta tanto a home quanto seções agrupadas por categoria.</p>
             </div>
-            <div class="grid md:grid-cols-2 gap-4">
+            <div class="field-grid two">
               <div>
                 <label class="block text-sm font-medium mb-1">Fonte padrão</label>
                 <select class="select w-full" name="store_category_font_choice">
@@ -1966,7 +1991,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <p class="text-xs text-gray-500 mt-1">Campos exibidos quando o tema alimentação está ativo. Todos os textos e imagens ficam editáveis.</p>
           </div>
 
-          <div class="grid md:grid-cols-2 gap-4">
+          <div class="field-grid two">
             <div>
               <label class="block text-sm font-medium mb-1">Etiqueta superior</label>
               <input class="input w-full" name="theme_food_hero_badge" maxlength="120" value="<?= sanitize_html($themeFoodConfig['hero_badge']); ?>" placeholder="Ex.: Direto da fazenda">
@@ -1975,11 +2000,11 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <label class="block text-sm font-medium mb-1">Título principal</label>
               <input class="input w-full" name="theme_food_hero_title" maxlength="160" value="<?= sanitize_html($themeFoodConfig['hero_title']); ?>" placeholder="Rancho Nossa Terra">
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Subtítulo</label>
               <textarea class="textarea w-full" name="theme_food_hero_subtitle" rows="2" maxlength="360"><?= sanitize_html($themeFoodConfig['hero_subtitle']); ?></textarea>
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Descrição da hero</label>
               <textarea class="textarea w-full" name="theme_food_hero_description" rows="3" maxlength="400"><?= sanitize_html($themeFoodConfig['hero_description'] ?? ''); ?></textarea>
             </div>
@@ -2011,7 +2036,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <label class="block text-sm font-medium mb-1">Cor sólida da hero</label>
               <input class="input w-full" type="color" name="theme_food_hero_background_color" value="<?= sanitize_html($themeFoodConfig['hero_background_color']); ?>">
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Imagem de fundo (JPG/PNG/WEBP · máx 3MB)</label>
               <?php if ($themeFoodHeroBackground): ?>
                 <div class="mb-3">
@@ -2033,7 +2058,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <h4 class="text-sm font-semibold">Destaques da hero</h4>
               <p class="hint mt-1">Use ícones da Font Awesome (ex.: fa-leaf, fa-wheat-awn). Os três cards aparecem ao lado da hero.</p>
             </div>
-            <div class="grid md:grid-cols-3 gap-4">
+            <div class="field-grid three">
               <?php foreach ($themeFoodHeroStats as $idx => $stat): ?>
               <div class="space-y-3 border border-gray-200 rounded-lg p-3 bg-white/60">
                 <div class="text-xs uppercase text-gray-500 font-semibold tracking-wide">Card <?= $idx + 1; ?></div>
@@ -2074,7 +2099,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
                 <input class="block w-full text-sm text-gray-600" type="file" name="theme_food_history_image" accept=".jpg,.jpeg,.png,.webp">
               </div>
             </div>
-            <div class="grid md:grid-cols-2 gap-4">
+            <div class="field-grid two">
               <div>
                 <label class="block text-sm font-medium mb-1">Título da seção</label>
                 <input class="input w-full" name="theme_food_history_heading" maxlength="160" value="<?= sanitize_html($themeFoodConfig['history_heading'] ?? ''); ?>" placeholder="Nossa História">
@@ -2083,12 +2108,12 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
                 <label class="block text-sm font-medium mb-1">Subtítulo</label>
                 <input class="input w-full" name="theme_food_history_subheading" maxlength="200" value="<?= sanitize_html($themeFoodConfig['history_subheading'] ?? ''); ?>" placeholder="Da fazenda para a sua mesa">
               </div>
-              <div class="md:col-span-2">
+              <div class="field-span-2">
                 <label class="block text-sm font-medium mb-1">Descrição</label>
                 <textarea class="textarea w-full" name="theme_food_history_description" rows="3" maxlength="600"><?= sanitize_html($themeFoodConfig['history_description'] ?? ''); ?></textarea>
               </div>
             </div>
-            <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="field-grid two xl-four">
               <?php $historyCards = $themeFoodConfig['history_cards'] ?? []; ?>
               <?php foreach ($historyCards as $idx => $card): ?>
                 <div class="space-y-3 border border-gray-200 rounded-lg p-3 bg-white/60">
@@ -2109,7 +2134,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <?php endforeach; ?>
             </div>
             <?php $historyStats = $themeFoodConfig['history_stats'] ?? []; ?>
-            <div class="grid md:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div class="field-grid three xl-six">
               <?php foreach ($historyStats as $idx => $stat): ?>
                 <div class="space-y-2 border border-gray-200 rounded-lg p-3 bg-white/60">
                   <div class="text-xs uppercase text-gray-500 font-semibold tracking-wide">Indicador <?= $idx + 1; ?></div>
@@ -2134,7 +2159,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             </div>
           </div>
 
-  <div class="grid md:grid-cols-2 gap-4">
+  <div class="field-grid two">
     <div>
       <label class="block text-sm font-medium mb-1">Título da seção de produtos</label>
       <input class="input w-full" name="theme_food_products_heading" maxlength="120" value="<?= sanitize_html($themeFoodConfig['products_heading']); ?>" placeholder="Nossos Produtos">
@@ -2145,7 +2170,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
     </div>
   </div>
 
-  <div class="grid md:grid-cols-2 gap-4 items-end">
+  <div class="field-grid two align-end">
     <div>
       <label class="flex items-center gap-2 text-sm font-medium">
         <input type="checkbox" name="theme_food_products_group_by_category" value="1" <?= !empty($themeFoodConfig['products_group_by_category']) ? 'checked' : ''; ?>>
@@ -2164,7 +2189,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <h4 class="text-sm font-semibold">Nossos valores</h4>
               <p class="hint mt-1">Quatro cartões com ícone, título e descrição.</p>
             </div>
-            <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="field-grid two xl-four">
               <?php foreach ($themeFoodValueCards as $idx => $card): ?>
               <div class="space-y-3 border border-gray-200 rounded-lg p-3 bg-white/60">
                 <div class="text-xs uppercase text-gray-500 font-semibold tracking-wide">Valor <?= $idx + 1; ?></div>
@@ -2193,7 +2218,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             </div>
           </div>
 
-          <div class="grid md:grid-cols-2 gap-4">
+          <div class="field-grid two">
             <div>
               <label class="block text-sm font-medium mb-1">Título do bloco destaque</label>
               <input class="input w-full" name="theme_food_highlight_heading" maxlength="120" value="<?= sanitize_html($themeFoodConfig['highlight_heading']); ?>" placeholder="Sabores da Fazenda">
@@ -2202,7 +2227,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <label class="block text-sm font-medium mb-1">Subtítulo do destaque</label>
               <input class="input w-full" name="theme_food_highlight_subheading" maxlength="200" value="<?= sanitize_html($themeFoodConfig['highlight_subheading']); ?>" placeholder="Descubra experiências gastronômicas completas.">
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Texto de apoio</label>
               <textarea class="textarea w-full" name="theme_food_highlight_text" rows="3" maxlength="600"><?= sanitize_html($themeFoodConfig['highlight_text']); ?></textarea>
             </div>
@@ -2214,7 +2239,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <label class="block text-sm font-medium mb-1">Link do botão</label>
               <input class="input w-full" name="theme_food_highlight_button_link" maxlength="255" value="<?= sanitize_html($themeFoodConfig['highlight_button_link']); ?>" placeholder="#produtos ou URL">
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Imagem lateral do destaque (JPG/PNG/WEBP · máx 3MB)</label>
               <?php if ($themeFoodHighlightImage): ?>
                 <div class="mb-3">
@@ -2231,12 +2256,12 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             </div>
           </div>
 
-          <div class="grid md:grid-cols-2 gap-4">
+          <div class="field-grid two">
             <div>
               <label class="block text-sm font-medium mb-1">Título da seção de contato</label>
               <input class="input w-full" name="theme_food_contact_heading" maxlength="120" value="<?= sanitize_html($themeFoodConfig['contact_heading']); ?>" placeholder="Fale com a gente">
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Texto informativo</label>
               <textarea class="textarea w-full" name="theme_food_contact_text" rows="2" maxlength="360"><?= sanitize_html($themeFoodConfig['contact_text']); ?></textarea>
               <p class="hint mt-1">Será exibido acima dos contatos padrão configurados na aba “Dados da loja”.</p>
@@ -2317,7 +2342,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
                 Exibir banner PWA
               </label>
             </div>
-            <div class="grid md:grid-cols-3 gap-4">
+            <div class="field-grid three">
               <div>
                 <label class="block text-sm font-medium mb-1">Atraso para aparecer (ms)</label>
                 <input class="input w-full" type="number" min="0" name="pwa_banner_show_delay" value="<?= (int)$pwaBannerConfig['show_delay_ms']; ?>">
@@ -2341,7 +2366,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
                   <option value="right" <?= $pwaBannerConfig['position'] === 'right' ? 'selected' : ''; ?>>Canto inferior direito</option>
                 </select>
               </div>
-              <div class="md:col-span-2">
+              <div class="field-span-2">
                 <label class="block text-sm font-medium mb-1">Mensagem exibida</label>
                 <textarea class="textarea w-full" name="pwa_banner_message" rows="2" maxlength="280"><?= htmlspecialchars($pwaBannerConfig['message'], ENT_QUOTES, 'UTF-8'); ?></textarea>
               </div>
@@ -2350,7 +2375,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
                 <input class="input w-full" name="pwa_banner_button_label" maxlength="80" value="<?= sanitize_html($pwaBannerConfig['button_label']); ?>">
               </div>
             </div>
-            <div class="grid md:grid-cols-5 gap-4">
+            <div class="field-grid five">
               <div>
                 <label class="block text-sm font-medium mb-1">Cor de fundo</label>
                 <input class="input w-full" type="color" name="pwa_banner_background_color" value="<?= sanitize_html($pwaBannerConfig['background_color']); ?>">
@@ -2390,7 +2415,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
                 'contact' => 'Seção de contato (tema alimentação)',
               ];
             ?>
-            <div class="grid md:grid-cols-2 gap-3">
+            <div class="field-grid two gap-tight">
               <?php foreach ($homeSectionsLabels as $sectionKey => $label): ?>
                 <label class="inline-flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
                   <input type="checkbox" class="mt-1" name="home_sections[<?= $sectionKey; ?>]" value="1" <?= !empty($homeSectionsVisibility[$sectionKey]) ? 'checked' : ''; ?>>
@@ -2476,7 +2501,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <div id="header-links-list" class="space-y-3" data-next-index="<?= count($headerLinksForForm); ?>">
               <?php foreach ($headerLinksForForm as $idx => $link): ?>
                 <div class="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50" data-entry>
-                  <div class="grid md:grid-cols-2 gap-3">
+                  <div class="field-grid two gap-tight">
                     <div>
                       <label class="block text-sm font-medium mb-1">Rótulo</label>
                       <input class="input w-full" name="header_links[<?= $idx; ?>][label]" maxlength="160" value="<?= sanitize_html($link['label'] ?? ''); ?>" required>
@@ -2514,7 +2539,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <div id="footer-links-list" class="space-y-3" data-next-index="<?= count($footerLinksForForm); ?>">
               <?php foreach ($footerLinksForForm as $idx => $link): ?>
                 <div class="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50" data-entry>
-                  <div class="grid md:grid-cols-2 gap-3">
+                  <div class="field-grid two gap-tight">
                     <div>
                       <label class="block text-sm font-medium mb-1">Rótulo</label>
                       <input class="input w-full" name="footer_links[<?= $idx; ?>][label]" maxlength="160" value="<?= sanitize_html($link['label'] ?? ''); ?>" required>
@@ -2551,7 +2576,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <div id="custom-pages-list" class="space-y-4" data-next-index="<?= count($customPagesForForm); ?>">
               <?php foreach ($customPagesForForm as $idx => $page): ?>
                 <div class="border border-gray-200 rounded-xl p-4 space-y-4 bg-gray-50" data-entry>
-                  <div class="grid md:grid-cols-2 gap-3">
+                  <div class="field-grid two gap-tight">
                     <div>
                       <label class="block text-sm font-medium mb-1">Título da página</label>
                       <input class="input w-full" name="pages[<?= $idx; ?>][title]" maxlength="160" value="<?= sanitize_html($page['title'] ?? ''); ?>">
@@ -2597,7 +2622,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
 
       <template id="tpl-header-link">
         <div class="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50" data-entry>
-          <div class="grid md:grid-cols-2 gap-3">
+          <div class="field-grid two gap-tight">
             <div>
               <label class="block text-sm font-medium mb-1">Rótulo</label>
               <input class="input w-full" name="header_links[__INDEX__][label]" maxlength="160" value="" required>
@@ -2623,7 +2648,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
 
       <template id="tpl-footer-link">
         <div class="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50" data-entry>
-          <div class="grid md:grid-cols-2 gap-3">
+          <div class="field-grid two gap-tight">
             <div>
               <label class="block text-sm font-medium mb-1">Rótulo</label>
               <input class="input w-full" name="footer_links[__INDEX__][label]" maxlength="160" value="" required>
@@ -2648,7 +2673,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
 
       <template id="tpl-custom-page">
         <div class="border border-gray-200 rounded-xl p-4 space-y-4 bg-gray-50" data-entry>
-          <div class="grid md:grid-cols-2 gap-3">
+          <div class="field-grid two gap-tight">
             <div>
               <label class="block text-sm font-medium mb-1">Título da página</label>
               <input class="input w-full" name="pages[__INDEX__][title]" maxlength="160" value="">
@@ -2766,18 +2791,18 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           </div>
         <?php endif; ?>
         <fieldset class="space-y-6" <?= $canEditSettings ? '' : 'disabled'; ?>>
-          <div class="grid md:grid-cols-2 gap-5">
-            <div class="md:col-span-2">
+          <div class="field-grid two gap-roomy">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Países disponíveis</label>
               <textarea class="textarea w-full font-mono text-sm" name="checkout_countries" rows="4" placeholder="US|Estados Unidos" <?= $canEditSettings ? '' : 'readonly'; ?>><?= htmlspecialchars($checkoutCountriesText, ENT_QUOTES, 'UTF-8'); ?></textarea>
               <p class="hint mt-1">Use o formato <code>CODIGO|Nome</code>. Ex.: <code>US|Estados Unidos</code>.</p>
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Estados / Províncias</label>
               <textarea class="textarea w-full font-mono text-sm" name="checkout_states" rows="6" placeholder="US|AL|Alabama" <?= $canEditSettings ? '' : 'readonly'; ?>><?= htmlspecialchars($checkoutStatesText, ENT_QUOTES, 'UTF-8'); ?></textarea>
               <p class="hint mt-1">Formato <code>PAIS|CODIGO|Nome</code>. Se um país não tiver estados listados, o checkout exibirá um campo de texto livre.</p>
             </div>
-            <div class="md:col-span-2">
+            <div class="field-span-2">
               <label class="block text-sm font-medium mb-1">Métodos de entrega</label>
               <textarea class="textarea w-full font-mono text-sm" name="checkout_delivery_methods" rows="5" placeholder="standard|Entrega padrão (5-7 dias)|Envio com rastreio para todo o país." <?= $canEditSettings ? '' : 'readonly'; ?>><?= htmlspecialchars($checkoutDeliveryText, ENT_QUOTES, 'UTF-8'); ?></textarea>
               <p class="hint mt-1">Formato <code>codigo|Nome|Descrição</code>. Utilize códigos curtos, sem espaços.</p>
@@ -2821,7 +2846,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
       <?php endif; ?>
       <form method="post" class="space-y-4" action="settings.php?tab=social&action=save_social">
         <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="field-grid two">
           <div>
             <label class="block text-sm font-medium mb-1">Perfil do Instagram</label>
             <input class="input w-full" type="url" name="social_instagram_url" value="<?= sanitize_html($instagramCurrent); ?>" placeholder="https://instagram.com/sualoja">
@@ -2910,7 +2935,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           </div>
         <?php endif; ?>
         <fieldset class="space-y-4" <?= $canManagePayments ? '' : 'disabled'; ?>>
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="field-grid two">
           <div>
             <label class="block text-sm font-medium mb-1">Nome</label>
             <input class="input w-full" name="name" value="<?= sanitize_html($formRow['name'] ?? ''); ?>" required>
@@ -2946,7 +2971,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           <textarea class="textarea w-full" name="instructions" rows="4"><?= htmlspecialchars($formRow['instructions'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
         </div>
 
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="field-grid two">
           <div>
             <label class="block text-sm font-medium mb-1">Legenda do campo</label>
             <input class="input w-full" name="account_label" value="<?= sanitize_html($formSettings['account_label'] ?? ''); ?>">
@@ -2957,7 +2982,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           </div>
         </div>
 
-        <div class="grid md:grid-cols-3 gap-4">
+        <div class="field-grid three">
           <div>
             <label class="block text-sm font-medium mb-1">Cor do botão</label>
             <input class="input w-full" type="color" name="button_bg" value="<?= sanitize_html($formSettings['button_bg'] ?? '#dc2626'); ?>">
@@ -2972,7 +2997,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
           </div>
         </div>
 
-        <div id="type-fields" class="grid md:grid-cols-2 gap-4">
+        <div id="type-fields" class="field-grid two">
           <div data-type="pix">
             <label class="block text-sm font-medium mb-1">Chave Pix</label>
             <input class="input w-full" name="pix_key" value="<?= sanitize_html($formSettings['pix_key'] ?? ''); ?>">
@@ -3044,7 +3069,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
             <label class="block text-sm font-medium mb-1">URL fixa (opcional)</label>
             <input class="input w-full" name="square_redirect_url" value="<?= sanitize_html($formSettings['redirect_url'] ?? ''); ?>" placeholder="https://">
           </div>
-          <div data-type="square" class="md:col-span-2 grid md:grid-cols-2 gap-4">
+          <div data-type="square" class="field-span-2 field-grid two">
             <div>
               <label class="block text-sm font-medium mb-1">Título (H1)</label>
               <input class="input w-full" name="square_badge_title" value="<?= sanitize_html($formSettings['badge_title'] ?? 'Seleção especial'); ?>" placeholder="Seleção especial">
@@ -3054,7 +3079,7 @@ unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
               <input class="input w-full" name="square_badge_text" value="<?= sanitize_html($formSettings['badge_text'] ?? 'Selecionados com carinho para você'); ?>" placeholder="Selecionados com carinho para você">
             </div>
           </div>
-          <div data-type="square" class="md:col-span-2 grid md:grid-cols-3 gap-4">
+          <div data-type="square" class="field-span-2 field-grid three">
             <div>
               <label class="block text-sm font-medium mb-1">Crédito - rótulo</label>
               <input class="input w-full" name="square_credit_label" value="<?= sanitize_html($formSettings['credit_label'] ?? 'Cartão de crédito'); ?>">
