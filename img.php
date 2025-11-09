@@ -50,5 +50,7 @@ if (!$ctype || stripos($ctype, 'image/') !== 0) {
   $ctype = $map[$ext] ?? 'image/*';
 }
 header('Content-Type: '.$ctype);
-header('Cache-Control: public, max-age=86400, immutable');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+header('Pragma: no-cache');
+header('Expires: Wed, 11 Jan 1984 05:00:00 GMT');
 echo $bin;

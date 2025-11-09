@@ -199,6 +199,21 @@ if ($action === 'reorder' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   exit;
 }
 
+if ($action === 'cache_bust_refresh' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+  require_super_admin();
+  if (!csrf_check($_POST['csrf'] ?? '')) {
+    die('CSRF');
+  }
+  try {
+    $newToken = cache_bust_regenerate_token();
+    $_SESSION['cache_bust_notice'] = 'Novo token de cache gerado: '.$newToken;
+  } catch (Throwable $e) {
+    $_SESSION['cache_bust_error'] = 'Falha ao regenerar o token: '.$e->getMessage();
+  }
+  header('Location: settings.php?tab=general#cache-busting');
+  exit;
+}
+
 if ($action === 'toggle' && isset($_GET['id'])) {
   if (!csrf_check($_GET['csrf'] ?? '')) die('CSRF');
   require_admin_capability('manage_payment_methods');
@@ -417,6 +432,96 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   setting_set('footer_copy', $footerCopy);
 
+  $hoursEnabled = !empty($_POST['store_hours_enabled']) ? '1' : '0';
+  setting_set('store_hours_enabled', $hoursEnabled);
+
+  $hoursLabel = pm_sanitize($_POST['store_hours_label'] ?? '', 160);
+  if ($hoursLabel === '') {
+    $hoursLabel = 'Seg a Sex: 09h às 18h (BRT)';
+  }
+  setting_set('store_hours_label', $hoursLabel);
+
+  $openInput = trim((string)($_POST['store_hours_open_time'] ?? ''));
+  if (!preg_match('/^\d{2}:\d{2}$/', $openInput)) {
+    $openInput = '09:00';
+  }
+  setting_set('store_hours_open_time', $openInput);
+
+  $closeInput = trim((string)($_POST['store_hours_close_time'] ?? ''));
+  if (!preg_match('/^\d{2}:\d{2}$/', $closeInput)) {
+    $closeInput = '18:00';
+  }
+  setting_set('store_hours_close_time', $closeInput);
+
+  $tzInput = trim((string)($_POST['store_hours_timezone'] ?? ''));
+  if ($tzInput === '') {
+    $tzInput = 'America/Sao_Paulo';
+  }
+  try {
+    $tzInput = (new DateTimeZone($tzInput))->getName();
+  } catch (Throwable $e) {
+    $tzInput = 'America/Sao_Paulo';
+  }
+  setting_set('store_hours_timezone', $tzInput);
+
+  $emailFromName = pm_sanitize($_POST['email_from_name'] ?? '', 160);
+  if ($emailFromName === '') {
+    $emailFromName = $storeName ?: 'Get Power Research';
+  }
+  setting_set('email_from_name', $emailFromName);
+
+  $emailFromAddress = trim((string)($_POST['email_from_address'] ?? ''));
+  if ($emailFromAddress !== '' && !validate_email($emailFromAddress)) {
+    $errors[] = 'Remetente (e-mail) inválido.';
+  } else {
+    if ($emailFromAddress === '') {
+      $emailFromAddress = $storeEmail ?: setting_get('store_email', '');
+    }
+    setting_set('email_from_address', $emailFromAddress);
+  }
+
+  $a2hsTitle = pm_sanitize($_POST['a2hs_title'] ?? '', 160);
+  if ($a2hsTitle === '') {
+    $a2hsTitle = 'Instalar App '.($storeName ?: 'Get Power Research');
+  }
+  setting_set('a2hs_title', $a2hsTitle);
+
+  $a2hsSubtitle = pm_clip_text($_POST['a2hs_subtitle'] ?? '', 240);
+  if ($a2hsSubtitle === '') {
+    $a2hsSubtitle = 'Experiência completa no seu dispositivo.';
+  }
+  setting_set('a2hs_subtitle', $a2hsSubtitle);
+
+  $a2hsButton = pm_sanitize($_POST['a2hs_button_label'] ?? '', 80);
+  if ($a2hsButton === '') {
+    $a2hsButton = 'Instalar App';
+  }
+  setting_set('a2hs_button_label', $a2hsButton);
+
+  $currentA2hsIcon = setting_get('a2hs_icon', '');
+  if (!empty($_FILES['a2hs_icon']['name'])) {
+    $upload = save_theme_asset_upload($_FILES['a2hs_icon'], 'pwa', 'a2hs-icon', 1_048_576);
+    if (!empty($upload['success'])) {
+      if ($currentA2hsIcon && strpos($currentA2hsIcon, 'storage/') === 0) {
+        $full = __DIR__ . '/' . ltrim($currentA2hsIcon, '/');
+        if (is_file($full)) {
+          @unlink($full);
+        }
+      }
+      setting_set('a2hs_icon', $upload['path']);
+    } else {
+      $errors[] = $upload['message'] ?? 'Falha ao enviar ícone do popup.';
+    }
+  } elseif (!empty($_POST['a2hs_icon_remove'])) {
+    if ($currentA2hsIcon && strpos($currentA2hsIcon, 'storage/') === 0) {
+      $full = __DIR__ . '/' . ltrim($currentA2hsIcon, '/');
+      if (is_file($full)) {
+        @unlink($full);
+      }
+    }
+    setting_set('a2hs_icon', '');
+  }
+
   $emailDefaultSet = email_template_defaults($storeName ?: (cfg()['store']['name'] ?? 'Sua Loja'));
   $emailCustomerSubject = pm_sanitize($_POST['email_customer_subject'] ?? '', 180);
   if ($emailCustomerSubject === '') {
@@ -498,6 +603,68 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   exit;
 }
 
+if ($action === 'export_cities') {
+  if (!csrf_check($_GET['csrf'] ?? '')) die('CSRF');
+  require_super_admin();
+  $cityMap = checkout_group_cities();
+  $lines = [];
+  foreach ($cityMap as $key => $cities) {
+    [$country, $state] = array_pad(explode('::', $key, 2), 2, '');
+    foreach ($cities as $name) {
+      $lines[] = strtoupper($country).'|'.strtoupper($state).'|'.$name;
+    }
+  }
+  header('Content-Type: text/plain; charset=utf-8');
+  header('Content-Disposition: attachment; filename="checkout_cities.txt"');
+  echo "country|state|city\n";
+  echo implode("\n", $lines);
+  exit;
+}
+
+if ($action === 'import_cities' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+  if (!csrf_check($_POST['csrf'] ?? '')) die('CSRF');
+  require_super_admin();
+  $cityData = trim((string)($_POST['city_data'] ?? ''));
+  $parsed = [];
+  if ($cityData !== '') {
+    foreach (preg_split('/\r?\n/', $cityData) as $line) {
+      $line = trim($line);
+      if ($line === '' || stripos($line, 'country|state|city') === 0) {
+        continue;
+      }
+      $parts = array_map('trim', explode('|', $line));
+      if (count($parts) >= 3) {
+        $country = strtoupper($parts[0]);
+        $state   = strtoupper($parts[1]);
+        $name    = $parts[2];
+        if ($country !== '' && $state !== '' && $name !== '') {
+          $parsed[] = ['country' => $country, 'state' => $state, 'name' => $name];
+        }
+      }
+    }
+  }
+  if ($parsed) {
+    setting_set('checkout_cities', $parsed);
+    $_SESSION['settings_cities_success'] = 'Lista de cidades importada com sucesso ('.count($parsed).' registros).';
+  } else {
+    $_SESSION['settings_cities_error'] = 'Nenhuma cidade válida encontrada. Use o formato COUNTRY|STATE|CITY.';
+  }
+  header('Location: settings.php?tab=general');
+  exit;
+}
+
+if ($action === 'save_costs' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+  if (!csrf_check($_POST['csrf'] ?? '')) {
+    die('CSRF');
+  }
+  require_super_admin();
+  $enabled = !empty($_POST['cost_management_enabled']) ? '1' : '0';
+  setting_set('cost_management_enabled', $enabled);
+  $_SESSION['settings_costs_success'] = 'Configurações de gestão de custos atualizadas.';
+  header('Location: settings.php?tab=costs&saved=1');
+  exit;
+}
+
 if ($action === 'save_theme' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!csrf_check($_POST['csrf'] ?? '')) {
     die('CSRF');
@@ -511,6 +678,14 @@ if ($action === 'save_theme' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $selectedTheme = 'default';
   }
   setting_set('store_theme', $selectedTheme);
+  $fontOptionsMap = store_category_font_options();
+  $categoryFontChoiceInput = $_POST['store_category_font_choice'] ?? 'default';
+  if ($categoryFontChoiceInput !== 'custom' && !isset($fontOptionsMap[$categoryFontChoiceInput])) {
+    $categoryFontChoiceInput = 'default';
+  }
+  $categoryFontCustomInput = pm_clip_text($_POST['store_category_font_custom'] ?? '', 180);
+  setting_set('store_category_font_choice', $categoryFontChoiceInput);
+  setting_set('store_category_font_custom', $categoryFontCustomInput);
 
   $foodCurrent = theme_food_config();
   $foodNew = $foodCurrent;
@@ -546,6 +721,12 @@ if ($action === 'save_theme' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $foodNew['products_heading'] = pm_sanitize($_POST['theme_food_products_heading'] ?? $foodCurrent['products_heading'], 120);
   $foodNew['products_subheading'] = pm_clip_text($_POST['theme_food_products_subheading'] ?? $foodCurrent['products_subheading'], 240);
+  $foodNew['products_group_by_category'] = !empty($_POST['theme_food_products_group_by_category']);
+  $uncategorizedLabel = pm_sanitize($_POST['theme_food_products_uncategorized_label'] ?? ($foodCurrent['products_uncategorized_label'] ?? 'Outros sabores'), 160);
+  if ($uncategorizedLabel === '') {
+    $uncategorizedLabel = 'Outros sabores';
+  }
+  $foodNew['products_uncategorized_label'] = $uncategorizedLabel;
 
   $values = $foodNew['values_items'] ?? theme_food_default_config()['values_items'];
   foreach ($values as $idx => $value) {
@@ -581,6 +762,7 @@ if ($action === 'save_theme' && $_SERVER['REQUEST_METHOD'] === 'POST') {
       $colorInput = $statDefault['color'];
     }
     $historyStats[$idx]['color'] = $colorInput;
+    $historyStats[$idx]['enabled'] = !empty($_POST['theme_food_history_stat_enabled_'.$idx]);
   }
   $foodNew['history_stats'] = $historyStats;
 
@@ -675,7 +857,26 @@ if ($action === 'save_theme' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
   }
 
-  setting_set('theme_food_config', json_encode($foodNew, JSON_UNESCAPED_UNICODE));
+  $themeSaved = setting_set('theme_food_config', $foodNew);
+  $themeFileSaved = false;
+  $themeConfigPath = __DIR__ . '/storage/theme_food_config.json';
+  $storageDir = dirname($themeConfigPath);
+  if (!is_dir($storageDir)) {
+    @mkdir($storageDir, 0775, true);
+  }
+  if (is_dir($storageDir) && is_writable($storageDir)) {
+    $jsonPayload = json_encode($foodNew, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    if ($jsonPayload !== false) {
+      $themeFileSaved = (@file_put_contents($themeConfigPath, $jsonPayload) !== false);
+    }
+  }
+
+  if (!$themeSaved && !$themeFileSaved) {
+    $_SESSION['settings_theme_error'] = 'Não foi possível salvar o tema. Verifique a conexão com o banco e as permissões de escrita em storage/.';
+    header('Location: settings.php?tab=theme&error=1');
+    exit;
+  }
+
   header('Location: settings.php?tab=theme&saved=1');
   exit;
 }
@@ -1070,6 +1271,10 @@ $storeEmailCurrent = setting_get('store_email', $storeCfg['support_email'] ?? 'c
 $storePhoneCurrent = setting_get('store_phone', $storeCfg['phone'] ?? '');
 $storeAddressCurrent = setting_get('store_address', $storeCfg['address'] ?? '');
 $storeLogoCurrent = get_logo_path();
+$costManagementEnabledSetting = cost_management_enabled();
+$categoryFontChoiceCurrent = setting_get('store_category_font_choice', 'default');
+$categoryFontCustomCurrent = setting_get('store_category_font_custom', '');
+$categoryFontOptions = store_category_font_options();
 $themeColorCurrent = setting_get('theme_color', '#2060C8');
 $generalError = $_SESSION['settings_general_error'] ?? '';
 unset($_SESSION['settings_general_error']);
@@ -1079,6 +1284,8 @@ $themeError = $_SESSION['settings_theme_error'] ?? '';
 unset($_SESSION['settings_theme_error']);
 $navigationError = $_SESSION['settings_navigation_error'] ?? '';
 unset($_SESSION['settings_navigation_error']);
+$costsSuccess = $_SESSION['settings_costs_success'] ?? '';
+unset($_SESSION['settings_costs_success']);
 
 $pwaBannerConfig = pwa_banner_config();
 $homeSectionsVisibility = home_sections_visibility();
@@ -1150,6 +1357,12 @@ if ($isSuperAdmin) {
     'icon' => 'fa-palette'
   ];
   $sections[] = [
+    'key' => 'costs',
+    'title' => 'Gestão de custos',
+    'description' => 'Ative o controle de custos e margens por produto.',
+    'icon' => 'fa-scale-balanced'
+  ];
+  $sections[] = [
     'key' => 'experience',
     'title' => 'Experiência',
     'description' => 'Banner PWA e visibilidade das seções da home.',
@@ -1197,6 +1410,10 @@ $dashboardHeroStyle = 'background: linear-gradient(135deg, '.$heroStartColor.', 
           <span class="icon"><i class="fa-solid fa-palette"></i></span>
           <span><div class="font-semibold">Temas</div><div class="text-xs opacity-80">Escolha e personalize o tema da vitrine</div></span>
         </a>
+        <a class="quick-link" href="settings.php?tab=costs">
+          <span class="icon"><i class="fa-solid fa-scale-balanced"></i></span>
+          <span><div class="font-semibold">Gestão de custos</div><div class="text-xs opacity-80">Defina custos e margens por produto</div></span>
+        </a>
         <a class="quick-link" href="settings.php?tab=experience">
           <span class="icon"><i class="fa-solid fa-mobile-screen-button"></i></span>
           <span><div class="font-semibold">Experiência</div><div class="text-xs opacity-80">Banner PWA e visibilidade da home</div></span>
@@ -1230,6 +1447,34 @@ $dashboardHeroStyle = 'background: linear-gradient(135deg, '.$heroStartColor.', 
   <div data-tab-panel="general" class="card brand-card <?= $tab === 'general' ? '' : 'hidden'; ?>">
     <div class="card-body settings-form">
     <h2 class="text-lg font-semibold mb-1">Informações da Loja</h2>
+    <div class="alert alert-warning"><i class="fa-solid fa-circle-info"></i><span>Versão do sistema: <strong>3.0 — criação Mike Lins</strong></span></div>
+    <?php if ($isSuperAdmin): ?>
+      <div id="cache-busting" class="mb-4 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-brand-900">Forçar atualização (cache bust)</p>
+            <p class="text-xs text-gray-600">Token atual: <code class="font-mono text-xs bg-white/70 px-1.5 py-0.5 rounded"><?= sanitize_html($cacheBustCurrentToken); ?></code></p>
+          </div>
+          <form method="post" action="settings.php?tab=general&amp;action=cache_bust_refresh">
+            <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
+            <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-arrows-rotate mr-1"></i>Gerar novo token</button>
+          </form>
+        </div>
+        <p class="text-xs text-gray-600">Ao regenerar o token, todas as folhas de estilo, scripts, service worker e manifest são carregados novamente em navegadores com cache agressivo (Hostinger/LiteSpeed).</p>
+        <?php if ($cacheBustNotice): ?>
+          <div class="alert alert-success mt-2">
+            <i class="fa-solid fa-circle-check"></i>
+            <span><?= sanitize_html($cacheBustNotice); ?></span>
+          </div>
+        <?php endif; ?>
+        <?php if ($cacheBustError): ?>
+          <div class="alert alert-error mt-2">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span><?= sanitize_html($cacheBustError); ?></span>
+          </div>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
     <?php if (isset($_GET['saved'])): ?>
       <div class="alert alert-success">
         <i class="fa-solid fa-circle-check"></i>
@@ -1251,6 +1496,23 @@ $featuredTitleCurrent = setting_get('home_featured_title', 'Ofertas em destaque'
 $featuredSubtitleCurrent = setting_get('home_featured_subtitle', 'Seleção especial com preços imperdíveis.');
 $featuredBadgeTitleCurrent = setting_get('home_featured_badge_title', 'Seleção especial');
 $featuredBadgeTextCurrent = setting_get('home_featured_badge_text', 'Selecionados com carinho para você');
+$storeHoursEnabledCurrent = setting_get('store_hours_enabled', '0') === '1';
+$storeHoursLabelCurrent = setting_get('store_hours_label', 'Seg a Sex: 09h às 18h (BRT)');
+$storeHoursOpenTimeCurrent = setting_get('store_hours_open_time', '09:00');
+$storeHoursCloseTimeCurrent = setting_get('store_hours_close_time', '18:00');
+$storeHoursTimezoneCurrent = setting_get('store_hours_timezone', 'America/Sao_Paulo');
+$a2hsTitleCurrent = setting_get('a2hs_title', 'Instalar App '.($storeNameCurrent ?: 'Get Power Research'));
+$a2hsSubtitleCurrent = setting_get('a2hs_subtitle', 'Experiência completa no seu dispositivo.');
+$a2hsButtonCurrent = setting_get('a2hs_button_label', 'Instalar App');
+$a2hsIconCurrent = setting_get('a2hs_icon', '');
+$a2hsIconPreview = '';
+if ($a2hsIconCurrent) {
+  $iconPath = ltrim($a2hsIconCurrent, '/');
+  $previewPath = function_exists('cache_busted_url') ? cache_busted_url($iconPath) : $iconPath;
+  $a2hsIconPreview = '/' . ltrim($previewPath, '/');
+}
+$emailFromNameCurrent = setting_get('email_from_name', $storeNameCurrent ?: 'Get Power Research');
+$emailFromAddressCurrent = setting_get('email_from_address', setting_get('store_email', $storeEmailCurrent));
 $emailDefaults = email_template_defaults($storeNameCurrent ?: ($storeCfg['name'] ?? ''));
 $emailCustomerSubjectCurrent = setting_get('email_customer_subject', $emailDefaults['customer_subject']);
 $emailCustomerBodyCurrent = setting_get('email_customer_body', $emailDefaults['customer_body']);
@@ -1276,6 +1538,29 @@ $pwaNameCurrent = setting_get('pwa_name', $storeNameCurrent ?: 'Get Power Resear
 $pwaShortNameCurrent = setting_get('pwa_short_name', $pwaNameCurrent);
 $pwaIcons = get_pwa_icon_paths();
 $pwaIconPreview = pwa_icon_url(192);
+$storeLogoPreviewUrl = '';
+if ($storeLogoCurrent) {
+  $logoPreviewPath = function_exists('cache_busted_url') ? cache_busted_url($storeLogoCurrent) : $storeLogoCurrent;
+  $storeLogoPreviewUrl = '/' . ltrim($logoPreviewPath, '/');
+}
+$cacheBustNotice = $_SESSION['cache_bust_notice'] ?? '';
+$cacheBustError = $_SESSION['cache_bust_error'] ?? '';
+unset($_SESSION['cache_bust_notice'], $_SESSION['cache_bust_error']);
+$cacheBustCurrentToken = function_exists('cache_bust_current_token') ? cache_bust_current_token() : '';
+$cityTextareaValue = '';
+if ($isSuperAdmin) {
+  $cityTextareaLines = [];
+  foreach (checkout_group_cities() as $key => $cities) {
+    [$cCountry, $cState] = array_pad(explode('::', $key, 2), 2, '');
+    foreach ($cities as $cityName) {
+      $cityTextareaLines[] = strtoupper($cCountry).'|'.strtoupper($cState).'|'.$cityName;
+    }
+  }
+  $cityTextareaValue = implode("\n", $cityTextareaLines);
+}
+$cityMessageSuccess = $_SESSION['settings_cities_success'] ?? '';
+$cityMessageError = $_SESSION['settings_cities_error'] ?? '';
+unset($_SESSION['settings_cities_success'], $_SESSION['settings_cities_error']);
     ?>
     <form method="post" enctype="multipart/form-data" action="settings.php?tab=general&action=save_general">
       <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
@@ -1307,7 +1592,7 @@ $pwaIconPreview = pwa_icon_url(192);
         <div class="md:col-span-2">
           <label class="block text-sm font-medium mb-1">Logo da loja (PNG/JPG/WEBP · máx 2MB)</label>
           <?php if ($storeLogoCurrent): ?>
-            <div class="mb-3"><img src="<?= sanitize_html($storeLogoCurrent); ?>" alt="Logo atual" class="h-16 object-contain rounded-md border border-gray-200 p-2 bg-white"></div>
+            <div class="mb-3"><img src="<?= sanitize_html($storeLogoPreviewUrl ?: $storeLogoCurrent); ?>" alt="Logo atual" class="h-16 object-contain rounded-md border border-gray-200 p-2 bg-white"></div>
           <?php else: ?>
             <p class="hint mb-2">Nenhuma logo encontrada. Você pode enviar uma agora.</p>
           <?php endif; ?>
@@ -1373,6 +1658,63 @@ $pwaIconPreview = pwa_icon_url(192);
         </div>
       </div>
 
+      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
+        <div class="flex flex-col gap-1">
+          <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-clock text-brand-600"></i> Horário de funcionamento</h3>
+          <p class="text-xs text-gray-500">Esse horário aparece no topo da loja com o status Aberto/Fechado. Informe o fuso no padrão IANA (ex.: <code>America/Sao_Paulo</code>).</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="inline-flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" name="store_hours_enabled" value="1" <?= $storeHoursEnabledCurrent ? 'checked' : ''; ?>>
+              Exibir status Aberto/Fechado no topo
+            </label>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium mb-1">Texto exibido</label>
+            <input class="input w-full" name="store_hours_label" maxlength="160" value="<?= sanitize_html($storeHoursLabelCurrent); ?>" placeholder="Seg a Sex: 09h às 18h (BRT)">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Início do expediente</label>
+            <input class="input w-full" type="time" name="store_hours_open_time" value="<?= sanitize_html($storeHoursOpenTimeCurrent); ?>" step="60">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Fim do expediente</label>
+            <input class="input w-full" type="time" name="store_hours_close_time" value="<?= sanitize_html($storeHoursCloseTimeCurrent); ?>" step="60">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium mb-1">Fuso horário</label>
+            <input class="input w-full" name="store_hours_timezone" maxlength="80" value="<?= sanitize_html($storeHoursTimezoneCurrent); ?>" placeholder="America/Sao_Paulo">
+            <p class="hint mt-1">Use identificadores IANA para que o cálculo considere horário de verão automaticamente.</p>
+          </div>
+        </div>
+      </div>
+
+      <?php if ($isSuperAdmin): ?>
+      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
+        <div class="flex flex-col gap-1">
+          <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-database text-brand-600"></i> Importar/Exportar cidades</h3>
+          <p class="text-xs text-gray-500">Use o formato <code>PAÍS|ESTADO|CIDADE</code> (ex.: <code>BR|SP|São Paulo</code>). Apenas super administradores podem alterar essa lista.</p>
+        </div>
+        <?php if ($cityMessageSuccess): ?>
+          <div class="alert alert-success"><i class="fa-solid fa-circle-check"></i><span><?= sanitize_html($cityMessageSuccess); ?></span></div>
+        <?php endif; ?>
+        <?php if ($cityMessageError): ?>
+          <div class="alert alert-error"><i class="fa-solid fa-triangle-exclamation"></i><span><?= sanitize_html($cityMessageError); ?></span></div>
+        <?php endif; ?>
+        <div class="flex flex-wrap gap-3">
+          <a class="btn btn-ghost" href="settings.php?tab=general&action=export_cities&csrf=<?= csrf_token(); ?>"><i class="fa-solid fa-file-arrow-down"></i> Exportar TXT</a>
+        </div>
+        <form method="post" action="settings.php?tab=general&action=import_cities" class="space-y-3">
+          <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
+          <label class="block text-sm font-medium mb-1" for="city-data-textarea">Cole a lista de cidades</label>
+          <textarea id="city-data-textarea" class="textarea w-full font-mono text-xs" name="city_data" rows="8" placeholder="BR|SP|São Paulo&#10;BR|RJ|Rio de Janeiro"><?= htmlspecialchars($cityTextareaValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
+          <p class="hint mt-1">Cada linha representa uma cidade. Para limpar a lista, deixe o campo em branco antes de enviar.</p>
+          <button class="btn btn-primary" type="submit"><i class="fa-solid fa-file-import mr-2"></i>Importar lista</button>
+        </form>
+      </div>
+      <?php endif; ?>
+
       <hr class="border-gray-200">
 
       <h3 class="text-md font-semibold">Vitrine de destaques</h3>
@@ -1409,10 +1751,21 @@ $pwaIconPreview = pwa_icon_url(192);
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
         <div class="flex flex-col gap-1">
           <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-envelope text-brand-600"></i> Templates de e-mail</h3>
           <p class="text-xs text-gray-500">Personalize os e-mails enviados para o cliente e para a equipe. Placeholders disponíveis: <code>{{site_name}}</code>, <code>{{store_name}}</code>, <code>{{order_id}}</code>, <code>{{order_number}}</code>, <code>{{order_date}}</code>, <code>{{customer_name}}</code>, <code>{{billing_full_name}}</code>, <code>{{billing_email}}</code>, <code>{{billing_phone}}</code>, <code>{{billing_address_html}}</code>, <code>{{shipping_address_html}}</code>, <code>{{shipping_method}}</code>, <code>{{shipping_method_description}}</code>, <code>{{order_items_rows}}</code>, <code>{{order_items}}</code>, <code>{{order_subtotal}}</code>, <code>{{order_shipping_total}}</code>, <code>{{order_tax_total}}</code>, <code>{{order_discount_total}}</code>, <code>{{order_total}}</code>, <code>{{payment_method}}</code>, <code>{{payment_status}}</code>, <code>{{payment_reference}}</code>, <code>{{track_link}}</code>, <code>{{track_url}}</code>, <code>{{support_email}}</code>, <code>{{customer_note}}</code>, <code>{{admin_order_url}}</code>, <code>{{additional_content}}</code>, <code>{{year}}</code>.</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Nome do remetente dos e-mails</label>
+            <input class="input w-full" name="email_from_name" maxlength="160" value="<?= sanitize_html($emailFromNameCurrent); ?>" placeholder="<?= sanitize_html($storeNameCurrent); ?>">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">E-mail do remetente</label>
+            <input class="input w-full" type="email" name="email_from_address" maxlength="160" value="<?= sanitize_html($emailFromAddressCurrent); ?>" placeholder="<?= sanitize_html($storeEmailCurrent); ?>">
+            <p class="hint mt-1">Esse endereço será exibido no campo “De:” e usado para notificações internas.</p>
+          </div>
         </div>
         <div class="grid md:grid-cols-2 gap-4">
           <div class="md:col-span-2">
@@ -1435,7 +1788,7 @@ $pwaIconPreview = pwa_icon_url(192);
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white">
+      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white settings-panel">
         <h3 class="text-md font-semibold mb-2 flex items-center gap-2"><i class="fa-brands fa-whatsapp text-[#25D366]"></i> WhatsApp Flutuante</h3>
         <p class="text-xs text-gray-500 mb-3">Defina o número e a mensagem exibida no botão flutuante da loja. O link abre a conversa direto no WhatsApp.</p>
         <div class="grid md:grid-cols-2 gap-4">
@@ -1460,7 +1813,7 @@ $pwaIconPreview = pwa_icon_url(192);
         </div>
       </div>
 
-      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white">
+      <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 bg-white settings-panel">
         <h3 class="text-md font-semibold mb-2 flex items-center gap-2"><i class="fa-solid fa-mobile-screen-button text-brand-600"></i> Identidade do App/PWA</h3>
         <p class="text-xs text-gray-500 mb-3">Personalize o título da aba, o nome exibido quando instalado e o ícone utilizado pelo aplicativo.</p>
         <div class="grid md:grid-cols-2 gap-4">
@@ -1489,6 +1842,39 @@ $pwaIconPreview = pwa_icon_url(192);
             <?php endif; ?>
             <input class="block w-full text-sm text-gray-600" type="file" name="pwa_icon" accept=".png">
             <p class="hint mt-1">Envie uma imagem quadrada, preferencialmente 512x512 px, em formato PNG.</p>
+          </div>
+        </div>
+
+        <hr class="border-gray-200">
+        <div>
+          <h4 class="text-sm font-semibold mb-1">Popup de instalação (Add to Home Screen)</h4>
+          <p class="text-xs text-gray-500">Personalize o modal exibido aos usuários ao convidá-los para instalar o app.</p>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium mb-1">Título do popup</label>
+            <input class="input w-full" name="a2hs_title" maxlength="160" value="<?= sanitize_html($a2hsTitleCurrent); ?>" placeholder="Instalar App <?= sanitize_html($storeNameCurrent ?: ''); ?>">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium mb-1">Descrição</label>
+            <textarea class="textarea w-full" name="a2hs_subtitle" rows="2" maxlength="240" placeholder="Use nossa experiência completa no seu dispositivo."><?= sanitize_html($a2hsSubtitleCurrent); ?></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Texto do botão</label>
+            <input class="input w-full" name="a2hs_button_label" maxlength="80" value="<?= sanitize_html($a2hsButtonCurrent); ?>" placeholder="Instalar App">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Ícone do popup (PNG/JPG/WEBP · máx 1MB)</label>
+            <?php if ($a2hsIconPreview): ?>
+              <div class="flex items-center gap-3 mb-2">
+                <img src="<?= htmlspecialchars($a2hsIconPreview, ENT_QUOTES, 'UTF-8'); ?>" alt="Ícone A2HS" class="h-12 w-12 rounded-lg border bg-white p-1">
+                <label class="inline-flex items-center gap-2 text-xs font-medium">
+                  <input type="checkbox" name="a2hs_icon_remove" value="1">
+                  Remover ícone atual
+                </label>
+              </div>
+            <?php endif; ?>
+            <input class="block w-full text-sm text-gray-600" type="file" name="a2hs_icon" accept=".png,.jpg,.jpeg,.webp">
           </div>
         </div>
       </div>
@@ -1544,6 +1930,32 @@ $pwaIconPreview = pwa_icon_url(192);
                 <?php endforeach; ?>
               </select>
               <p class="hint mt-1">Apenas super administradores podem alterar o tema publicado.</p>
+            </div>
+          </div>
+
+          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
+            <div class="flex flex-col gap-1">
+              <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-font text-brand-600"></i> Fonte das categorias</h3>
+              <p class="text-xs text-gray-500">Escolha a família tipográfica utilizada nos títulos das categorias exibidos na vitrine. Essa opção afeta tanto a home quanto seções agrupadas por categoria.</p>
+            </div>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-1">Fonte padrão</label>
+                <select class="select w-full" name="store_category_font_choice">
+                  <?php foreach ($categoryFontOptions as $fontKey => $fontData): ?>
+                    <option value="<?= sanitize_html($fontKey); ?>" <?= $categoryFontChoiceCurrent === $fontKey ? 'selected' : ''; ?>>
+                      <?= sanitize_html($fontData['label']); ?>
+                    </option>
+                  <?php endforeach; ?>
+                  <option value="custom" <?= $categoryFontChoiceCurrent === 'custom' ? 'selected' : ''; ?>>Personalizada (CSS)</option>
+                </select>
+                <p class="hint mt-1">Selecione uma das opções sugeridas ou use "Personalizada" para inserir um <code>font-family</code> manualmente.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Fonte personalizada (font-family)</label>
+                <input class="input w-full" name="store_category_font_custom" maxlength="180" value="<?= sanitize_html($categoryFontCustomCurrent); ?>" placeholder="'Playfair Display', serif">
+                <p class="hint mt-1">Aplicada somente quando a opção "Personalizada" estiver selecionada.</p>
+              </div>
             </div>
           </div>
 
@@ -1616,7 +2028,7 @@ $pwaIconPreview = pwa_icon_url(192);
             </div>
           </div>
 
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div>
               <h4 class="text-sm font-semibold">Destaques da hero</h4>
               <p class="hint mt-1">Use ícones da Font Awesome (ex.: fa-leaf, fa-wheat-awn). Os três cards aparecem ao lado da hero.</p>
@@ -1642,7 +2054,7 @@ $pwaIconPreview = pwa_icon_url(192);
             </div>
           </div>
 
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
               <div>
                 <h4 class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-book-open text-brand-600"></i> Nossa História</h4>
@@ -1701,6 +2113,10 @@ $pwaIconPreview = pwa_icon_url(192);
               <?php foreach ($historyStats as $idx => $stat): ?>
                 <div class="space-y-2 border border-gray-200 rounded-lg p-3 bg-white/60">
                   <div class="text-xs uppercase text-gray-500 font-semibold tracking-wide">Indicador <?= $idx + 1; ?></div>
+                  <label class="flex items-center gap-2 text-xs font-semibold text-brand-700">
+                    <input type="checkbox" name="theme_food_history_stat_enabled_<?= $idx; ?>" value="1" <?= !empty($stat['enabled']) ? 'checked' : ''; ?>>
+                    Exibir indicador
+                  </label>
                   <div>
                     <label class="block text-xs font-medium mb-1">Valor</label>
                     <input class="input w-full" name="theme_food_history_stat_value_<?= $idx; ?>" value="<?= sanitize_html($stat['value'] ?? ''); ?>" maxlength="40">
@@ -1718,18 +2134,32 @@ $pwaIconPreview = pwa_icon_url(192);
             </div>
           </div>
 
-          <div class="grid md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Título da seção de produtos</label>
-              <input class="input w-full" name="theme_food_products_heading" maxlength="120" value="<?= sanitize_html($themeFoodConfig['products_heading']); ?>" placeholder="Nossos Produtos">
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Subtítulo de produtos</label>
-              <input class="input w-full" name="theme_food_products_subheading" maxlength="240" value="<?= sanitize_html($themeFoodConfig['products_subheading']); ?>" placeholder="Filtre por categoria e monte sua cesta saudável.">
-            </div>
-          </div>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">Título da seção de produtos</label>
+      <input class="input w-full" name="theme_food_products_heading" maxlength="120" value="<?= sanitize_html($themeFoodConfig['products_heading']); ?>" placeholder="Nossos Produtos">
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Subtítulo de produtos</label>
+      <input class="input w-full" name="theme_food_products_subheading" maxlength="240" value="<?= sanitize_html($themeFoodConfig['products_subheading']); ?>" placeholder="Filtre por categoria e monte sua cesta saudável.">
+    </div>
+  </div>
 
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+  <div class="grid md:grid-cols-2 gap-4 items-end">
+    <div>
+      <label class="flex items-center gap-2 text-sm font-medium">
+        <input type="checkbox" name="theme_food_products_group_by_category" value="1" <?= !empty($themeFoodConfig['products_group_by_category']) ? 'checked' : ''; ?>>
+        Agrupar produtos por categoria (exibe divisórias)
+      </label>
+      <p class="hint mt-1">Quando ativo, cada categoria recebe um título com a mesma fonte do nome da loja.</p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Rótulo para itens sem categoria</label>
+      <input class="input w-full" name="theme_food_products_uncategorized_label" maxlength="160" value="<?= sanitize_html($themeFoodConfig['products_uncategorized_label'] ?? 'Outros sabores'); ?>" placeholder="Outros sabores">
+    </div>
+  </div>
+
+          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div>
               <h4 class="text-sm font-semibold">Nossos valores</h4>
               <p class="hint mt-1">Quatro cartões com ícone, título e descrição.</p>
@@ -1825,6 +2255,42 @@ $pwaIconPreview = pwa_icon_url(192);
     </div>
   </div>
 
+  <div data-tab-panel="costs" class="card <?= $tab === 'costs' ? '' : 'hidden'; ?>">
+    <div class="card-body settings-form space-y-6">
+      <div>
+        <h2 class="text-lg font-semibold mb-1">Gestão de custos e margens</h2>
+        <p class="text-sm text-gray-500">Ative o controle de custos unitários e lucros estimados por produto. Os valores são utilizados nos relatórios e no painel financeiro.</p>
+      </div>
+      <?php if ($tab === 'costs' && isset($_GET['saved'])): ?>
+        <div class="alert alert-success">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Configurações atualizadas com sucesso.</span>
+        </div>
+      <?php elseif ($costsSuccess): ?>
+        <div class="alert alert-success">
+          <i class="fa-solid fa-circle-check"></i>
+          <span><?= sanitize_html($costsSuccess); ?></span>
+        </div>
+      <?php endif; ?>
+      <form method="post" action="settings.php?tab=costs&action=save_costs">
+        <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
+        <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+          <label class="flex items-start gap-3">
+            <input type="checkbox" name="cost_management_enabled" value="1" <?= $costManagementEnabledSetting ? 'checked' : ''; ?>>
+            <span>
+              <div class="text-sm font-semibold">Ativar gestão de custos</div>
+              <p class="text-xs text-gray-500 mt-1">Quando habilitado, cada produto passa a ter campos de custo unitário e lucro estimado. Os pedidos novos registram essas informações automaticamente e o painel financeiro exibe indicadores de margem.</p>
+            </span>
+          </label>
+          <p class="text-xs text-gray-500">Desativar a função mantém os dados existentes, porém oculta os campos no cadastro de produtos e remove os indicadores extras dos relatórios.</p>
+        </div>
+        <div class="flex justify-end">
+          <button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk mr-2"></i>Salvar configurações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div data-tab-panel="experience" class="card <?= $tab === 'experience' ? '' : 'hidden'; ?>">
     <div class="card-body settings-form space-y-6">
       <div>
@@ -1840,7 +2306,7 @@ $pwaIconPreview = pwa_icon_url(192);
       <form method="post" class="space-y-6" action="settings.php?tab=experience&action=save_experience">
         <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
         <fieldset class="space-y-6">
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+        <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-mobile-screen-button text-brand-600"></i> Banner de instalação PWA</h3>
@@ -1908,7 +2374,7 @@ $pwaIconPreview = pwa_icon_url(192);
             </div>
           </div>
 
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+        <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div>
               <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-table-list text-brand-600"></i> Seções da página inicial</h3>
               <p class="text-xs text-gray-500 mt-1">Desmarque os blocos que não devem ser exibidos na home. Os itens se aplicam ao tema atual e ao tema alimentação.</p>
@@ -1999,7 +2465,7 @@ $pwaIconPreview = pwa_icon_url(192);
       <form method="post" class="space-y-6" action="settings.php?tab=navigation&action=save_navigation">
         <input type="hidden" name="csrf" value="<?= csrf_token(); ?>">
         <fieldset class="space-y-6">
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+        <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div class="flex items-center justify-between gap-3">
               <div>
                 <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-list-ul text-brand-600"></i> Menu do header</h3>
@@ -2037,7 +2503,7 @@ $pwaIconPreview = pwa_icon_url(192);
             </div>
           </div>
 
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+        <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div class="flex items-center justify-between gap-3">
               <div>
                 <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-link text-brand-600"></i> Links do rodapé</h3>
@@ -2074,7 +2540,7 @@ $pwaIconPreview = pwa_icon_url(192);
             </div>
           </div>
 
-          <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4">
+        <div class="border border-gray-200 rounded-xl p-4 bg-white space-y-4 settings-panel">
             <div class="flex items-center justify-between gap-3">
               <div>
                 <h3 class="text-md font-semibold flex items-center gap-2"><i class="fa-solid fa-file-lines text-brand-600"></i> Páginas institucionais</h3>

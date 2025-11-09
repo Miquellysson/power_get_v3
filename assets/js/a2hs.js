@@ -2,6 +2,18 @@
 (function () {
   const customIcon = window.__A2HS_ICON__ || window.__APP_ICON__ || null;
   const customAppName = window.__APP_NAME__ || 'Get Power Research';
+  const customModalTitle = window.__A2HS_TITLE__ || `Instalar App ${customAppName}`;
+  const customModalSubtitle = window.__A2HS_SUBTITLE__ || '';
+  const customButtonLabel = window.__A2HS_BUTTON__ || `Instalar App`;
+  const cacheToken = typeof window.__CACHE_BUSTER__ === 'string' && window.__CACHE_BUSTER__.length
+    ? window.__CACHE_BUSTER__
+    : '';
+  function applyCacheKey(url) {
+    if (!cacheToken) return url;
+    if (/[?&](?:v|cb)=/i.test(url)) return url;
+    const glue = url.includes('?') ? '&' : '?';
+    return `${url}${glue}cb=${encodeURIComponent(cacheToken)}`;
+  }
   const swHints = [];
   if (Array.isArray(window.__SW_URLS__)) {
     swHints.push(...window.__SW_URLS__.map(String));
@@ -9,12 +21,12 @@
     swHints.push(String(window.__SW_URL__));
   }
   const defaultSwPaths = ['/sw.js'];
-  const uniqueSwPaths = Array.from(new Set(swHints.concat(defaultSwPaths)));
+  const uniqueSwPaths = Array.from(new Set(swHints.concat(defaultSwPaths).map(applyCacheKey)));
 
   const CONFIG = {
     appName: customAppName,
     // >>> caminhos ABSOLUTOS para a subpasta
-    icon192: customIcon || '/assets/icons/farma-192.png',
+    icon192: applyCacheKey(customIcon || '/assets/icons/farma-192.png'),
     deferDaysAfterDismiss: 7,
     swPaths: uniqueSwPaths
   };
@@ -92,8 +104,9 @@
     const body = document.createElement('div'); body.className = 'a2hs-body';
 
     if (!ios) {
+      const subtitleBlock = subtitle ? `<p class="a2hs-sub">${subtitle}</p>` : '';
       body.innerHTML = `
-        <p class="a2hs-sub">${subtitle}</p>
+        ${subtitleBlock}
         <div class="a2hs-actions">
           <button class="a2hs-btn a2hs-primary" type="button">${primaryLabel || 'Instalar App'}</button>
           <button class="a2hs-btn a2hs-secondary" type="button">Agora não</button>
@@ -101,8 +114,10 @@
         <div class="a2hs-small">Você pode instalar depois pelo menu do navegador.</div>
       `;
     } else {
+      const subtitleBlock = subtitle ? `<p class="a2hs-sub">${subtitle}</p>` : '';
       const shareSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-2px;"><path d="M12 16a1 1 0 0 1-1-1V6.414L8.707 8.707a1 1 0 1 1-1.414-1.414l4-4a1 1 0 0 1 1.414 0l4 4A1 1 0 0 1 15.293 8.707L13 6.414V15a1 1 0 0 1-1 1Z"></path><path d="M5 10a1 1 0 0 1 1 1v7h12v-7a1 1 0 1 1 2 0v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a1 1 0 0 1 1-1Z"></path></svg>`;
       body.innerHTML = `
+        ${subtitleBlock}
         <p class="a2hs-sub">Para instalar no iPhone/iPad:</p>
         <div class="a2hs-ios-tip">
           <div class="a2hs-row">${shareSVG} Abra <b>Compartilhar</b></div>
@@ -139,9 +154,9 @@
     deferredEvt = e;
     if (dismissedRecently() || isInStandalone) return;
     makeModal({
-      title: 'Instalar App Get Power Research',
-      subtitle: location.hostname + '/farmafixed',
-      primaryLabel: 'Instalar App Get Power Research'
+      title: customModalTitle || `Instalar App ${CONFIG.appName}`,
+      subtitle: customModalSubtitle || location.hostname,
+      primaryLabel: customButtonLabel || `Instalar App ${CONFIG.appName}`
     });
   });
 
@@ -150,7 +165,7 @@
     if (!isIOS) return;
     [['apple-mobile-web-app-capable','yes'],
      ['apple-mobile-web-app-status-bar-style','black-translucent'],
-     ['apple-mobile-web-app-title', 'Get Power Research']
+     ['apple-mobile-web-app-title', CONFIG.appName]
     ].forEach(([n,c])=>{
       if (!document.querySelector(`meta[name="${n}"]`)) {
         const m=document.createElement('meta'); m.name=n; m.content=c; document.head.appendChild(m);
@@ -162,7 +177,7 @@
   }
   function showIOSModal() {
     if (dismissedRecently() || isInStandalone) return;
-    makeModal({ title: 'Instalar App Get Power Research', subtitle: '', ios: true });
+    makeModal({ title: customModalTitle || `Instalar App ${CONFIG.appName}`, subtitle: customModalSubtitle, ios: true });
   }
 
   document.addEventListener('DOMContentLoaded', async () => {

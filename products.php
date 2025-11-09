@@ -71,13 +71,22 @@ function ensure_products_schema(PDO $pdo): void {
     $cols = $pdo->query("SHOW COLUMNS FROM products");
     $hasPriceCompare = false;
     $hasCurrency = false;
+    $hasCostPrice = false;
+    $hasProfitAmount = false;
     if ($cols) {
       while ($col = $cols->fetch(PDO::FETCH_ASSOC)) {
-        if (($col['Field'] ?? '') === 'price_compare') {
+        $field = $col['Field'] ?? '';
+        if ($field === 'price_compare') {
           $hasPriceCompare = true;
         }
-        if (($col['Field'] ?? '') === 'currency') {
+        if ($field === 'currency') {
           $hasCurrency = true;
+        }
+        if ($field === 'cost_price') {
+          $hasCostPrice = true;
+        }
+        if ($field === 'profit_amount') {
+          $hasProfitAmount = true;
         }
       }
     }
@@ -89,6 +98,12 @@ function ensure_products_schema(PDO $pdo): void {
       $defaultCurrency = strtoupper(cfg()['store']['currency'] ?? 'USD');
       $upd = $pdo->prepare("UPDATE products SET currency = ? WHERE currency IS NULL OR currency = ''");
       $upd->execute([$defaultCurrency]);
+    }
+    if (!$hasCostPrice) {
+      $pdo->exec("ALTER TABLE products ADD COLUMN cost_price DECIMAL(10,2) NULL AFTER currency");
+    }
+    if (!$hasProfitAmount) {
+      $pdo->exec("ALTER TABLE products ADD COLUMN profit_amount DECIMAL(10,2) NULL AFTER cost_price");
     }
   } catch (Throwable $e) {
     // Ignora: se as colunas já existirem ou permissão negada, apenas seguimos sem interromper
@@ -280,6 +295,18 @@ function product_collect_payload(PDO $pdo, array $post, array $files, string $st
   if ($shippingCost < 0) {
     $shippingCost = 0;
   }
+  $costPrice = null;
+  $profitAmount = null;
+  if (cost_management_enabled()) {
+    $costInput = trim((string)($post['cost_price'] ?? ''));
+    if ($costInput !== '') {
+      $costPrice = max(0, round((float)$costInput, 2));
+    }
+    $profitInput = trim((string)($post['profit_amount'] ?? ''));
+    if ($profitInput !== '') {
+      $profitAmount = round((float)$profitInput, 2);
+    }
+  }
   $currency = normalize_product_currency($post['currency'] ?? $storeCurrency, $storeCurrency);
   $stock = (int)($post['stock'] ?? 0);
   $category_id = (int)($post['category_id'] ?? 0);
@@ -405,6 +432,8 @@ function product_collect_payload(PDO $pdo, array $post, array $files, string $st
     'price' => $price,
     'price_compare' => $priceCompare,
     'currency' => $currency,
+    'cost_price' => $costPrice,
+    'profit_amount' => $profitAmount,
     'shipping_cost' => $shippingCost,
     'stock' => $stock,
     'category_id' => $category_id,
@@ -671,6 +700,11 @@ function product_form($row){
   $active = (int)($row['active'] ?? 1);
   $featured = (int)($row['featured'] ?? 0);
   $currency = normalize_product_currency($row['currency'] ?? '', $storeCurrency);
+  $costManagementEnabled = cost_management_enabled();
+  $costPriceValue = $costManagementEnabled ? ($row['cost_price'] ?? null) : null;
+  $profitAmountValue = $costManagementEnabled ? ($row['profit_amount'] ?? null) : null;
+  $costPriceFormatted = $costPriceValue === null ? '' : number_format((float)$costPriceValue, 2, '.', '');
+  $profitAmountFormatted = $profitAmountValue === null ? '' : number_format((float)$profitAmountValue, 2, '.', '');
   $img = sanitize_html($row['image_path'] ?? '');
   $square_link = sanitize_html($row['square_payment_link'] ?? '');
   $stripe_link = sanitize_html($row['stripe_payment_link'] ?? '');
@@ -718,6 +752,12 @@ function product_form($row){
   $currencySelect .= '</select>';
   echo '    <div class="field"><span>Moeda</span>' . $currencySelect . '</div>';
   echo '    <div class="field"><span>Frete (' . $currency . ')</span><input class="input" name="shipping_cost" type="number" step="0.01" value="' . $shippingCost . '" placeholder="7.00"></div>';
+  if ($costManagementEnabled) {
+    echo '    <div class="field"><span>Custo unitário (' . $currency . ')</span><input class="input" name="cost_price" type="number" step="0.01" value="' . $costPriceFormatted . '" placeholder="Ex.: 12.50">';
+    echo '      <p class="text-xs text-gray-500 mt-1">Utilizado para calcular lucro e relatórios financeiros.</p></div>';
+    echo '    <div class="field"><span>Lucro estimado por unidade (' . $currency . ')</span><input class="input" name="profit_amount" type="number" step="0.01" value="' . $profitAmountFormatted . '" placeholder="Opcional">';
+    echo '      <p class="text-xs text-gray-500 mt-1">Se vazio, calcularemos automaticamente (Preço atual - Custo).</p></div>';
+  }
   echo '    <div class="field"><span>Estoque</span><input class="input" name="stock" type="number" value="' . $stock . '" required></div>';
   echo '    <div class="field"><span>Categoria</span><select class="select" name="category_id">' . categories_options($pdo, $category_id) . '</select></div>';
   echo '    <div class="field"><span>Ativo</span><select class="select" name="active"><option value="1" ' . ($active ? 'selected' : '') . '>Sim</option><option value="0" ' . (!$active ? 'selected' : '') . '>Não</option></select></div>';
@@ -818,14 +858,16 @@ if ($action==='export') {
   header('Content-Type: text/csv; charset=utf-8');
   header('Content-Disposition: attachment; filename="produtos-'.date('Ymd-His').'.csv"');
   $out = fopen('php://output', 'w');
-  fputcsv($out, ['sku','name','price','price_compare','shipping_cost','currency','stock','category_id','description','image_path','square_credit_link','square_debit_link','square_afterpay_link','square_payment_link','stripe_payment_link','active']);
-  $stmt = $pdo->query("SELECT sku,name,price,price_compare,shipping_cost,currency,stock,category_id,description,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,active FROM products ORDER BY id ASC");
+  fputcsv($out, ['sku','name','price','price_compare','cost_price','profit_amount','shipping_cost','currency','stock','category_id','description','image_path','square_credit_link','square_debit_link','square_afterpay_link','square_payment_link','stripe_payment_link','active']);
+  $stmt = $pdo->query("SELECT sku,name,price,price_compare,cost_price,profit_amount,shipping_cost,currency,stock,category_id,description,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,active FROM products ORDER BY id ASC");
   foreach ($stmt as $row) {
     fputcsv($out, [
       $row['sku'],
       $row['name'],
       number_format((float)$row['price'], 2, '.', ''),
       $row['price_compare'] !== null ? number_format((float)$row['price_compare'], 2, '.', '') : '',
+      $row['cost_price'] !== null ? number_format((float)$row['cost_price'], 2, '.', '') : '',
+      $row['profit_amount'] !== null ? number_format((float)$row['profit_amount'], 2, '.', '') : '',
       number_format((float)($row['shipping_cost'] ?? 7), 2, '.', ''),
       strtoupper($row['currency'] ?? $storeCurrency),
       (int)$row['stock'],
@@ -872,6 +914,8 @@ if ($action==='import') {
     $headerLower = array_map(fn($v) => strtolower(trim($v)), $header);
     $headerMap = array_flip($headerLower);
     $hasPriceCompare = isset($headerMap['price_compare']);
+    $hasCostColumn = isset($headerMap['cost_price']);
+    $hasProfitColumn = isset($headerMap['profit_amount']);
     foreach (['sku','name','price','stock'] as $required) {
       if (!isset($headerMap[$required])) {
         fclose($handle);
@@ -885,8 +929,8 @@ if ($action==='import') {
     $errors = [];
     $line = 1;
     $selectSku = $pdo->prepare("SELECT * FROM products WHERE sku = ? LIMIT 1");
-    $updateStmt = $pdo->prepare("UPDATE products SET name=?, sku=?, price=?, price_compare=?, currency=?, shipping_cost=?, stock=?, category_id=?, description=?, active=?, featured=?, image_path=?, square_credit_link=?, square_debit_link=?, square_afterpay_link=?, square_payment_link=?, stripe_payment_link=? WHERE id=?");
-    $insertStmt = $pdo->prepare("INSERT INTO products(name,sku,price,price_compare,currency,shipping_cost,stock,category_id,description,active,featured,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())");
+    $updateStmt = $pdo->prepare("UPDATE products SET name=?, sku=?, price=?, price_compare=?, cost_price=?, profit_amount=?, currency=?, shipping_cost=?, stock=?, category_id=?, description=?, active=?, featured=?, image_path=?, square_credit_link=?, square_debit_link=?, square_afterpay_link=?, square_payment_link=?, stripe_payment_link=? WHERE id=?");
+    $insertStmt = $pdo->prepare("INSERT INTO products(name,sku,price,price_compare,cost_price,profit_amount,currency,shipping_cost,stock,category_id,description,active,featured,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())");
     $categoryIds = [];
     try {
       $categoryIds = $pdo->query("SELECT id FROM categories")->fetchAll(PDO::FETCH_COLUMN);
@@ -935,6 +979,17 @@ if ($action==='import') {
           $shippingCost = 7.0;
         }
         $shippingCost = max(0, $shippingCost);
+        $costPriceValue = null;
+        if ($hasCostColumn) {
+          $costPriceValue = parse_decimal_value($data['cost_price'] ?? '', null);
+          if ($costPriceValue !== null && $costPriceValue < 0) {
+            $costPriceValue = null;
+          }
+        }
+        $profitAmountValue = null;
+        if ($hasProfitColumn) {
+          $profitAmountValue = parse_decimal_value($data['profit_amount'] ?? '', null);
+        }
         $stock = (int)($data['stock'] ?? 0);
         $categoryId = null;
         if (isset($data['category_id']) && $data['category_id'] !== '') {
@@ -1002,11 +1057,15 @@ if ($action==='import') {
           $stripeToUse = $stripeLink !== '' ? $stripeLink : ($existing['stripe_payment_link'] ?? '');
           $compareToUse = $hasPriceCompare ? $priceCompare : ($existing['price_compare'] ?? null);
           $currencyToUse = normalize_product_currency($currencyInput, $existing['currency'] ?? $storeCurrency);
+          $costToUse = $hasCostColumn ? $costPriceValue : ($existing['cost_price'] ?? null);
+          $profitToUse = $hasProfitColumn ? $profitAmountValue : ($existing['profit_amount'] ?? null);
           $updateStmt->execute([
             $name,
             $sku,
             $price,
             $compareToUse,
+            $costToUse,
+            $profitToUse,
             $currencyToUse,
             $shippingCost,
             $stock,
@@ -1030,6 +1089,8 @@ if ($action==='import') {
             $sku,
             $price,
             $priceCompare,
+            $costPriceValue,
+            $profitAmountValue,
             $currencyFinal,
             $shippingCost,
             $stock,
@@ -1076,7 +1137,7 @@ if ($action==='import') {
     $icon = $flash['type'] === 'error' ? 'fa-circle-exclamation' : ($flash['type'] === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-check');
     echo '<div class="'.$class.'"><i class="fa-solid '.$icon.' mr-2"></i>'.sanitize_html($flash['message']).'</div>';
   }
-  echo '<p class="text-sm text-gray-600">Envie um arquivo CSV (UTF-8) com o cabeçalho <code>sku,name,price,price_compare,shipping_cost,currency,stock,category_id,description,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,active</code> (os campos <code>price_compare</code>, <code>shipping_cost</code> e <code>currency</code> são opcionais).</p>';
+  echo '<p class="text-sm text-gray-600">Envie um arquivo CSV (UTF-8) com o cabeçalho <code>sku,name,price,price_compare,cost_price,profit_amount,shipping_cost,currency,stock,category_id,description,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,active</code>. Os campos <code>price_compare</code>, <code>cost_price</code>, <code>profit_amount</code>, <code>shipping_cost</code> e <code>currency</code> são opcionais.</p>';
   echo '<p class="text-sm text-gray-600">Use <a class="text-brand-600 underline" href="products.php?action=export">Exportar CSV</a> para gerar um modelo.</p>';
   echo '<form method="post" enctype="multipart/form-data" class="space-y-3">';
   echo '  <input type="hidden" name="csrf" value="'.csrf_token().'">';
@@ -1121,7 +1182,7 @@ if ($action==='create' && $_SERVER['REQUEST_METHOD']==='POST') {
   }
 
   $productColumns = [
-    'name','slug','sku','price','price_compare','currency','shipping_cost','stock','category_id',
+    'name','slug','sku','price','price_compare','currency','cost_price','profit_amount','shipping_cost','stock','category_id',
     'description','active','featured','image_path','square_payment_link','square_credit_link',
     'square_debit_link','square_afterpay_link','stripe_payment_link'
   ];
@@ -1132,6 +1193,8 @@ if ($action==='create' && $_SERVER['REQUEST_METHOD']==='POST') {
     $productData['price'],
     $productData['price_compare'],
     $productData['currency'],
+    $productData['cost_price'],
+    $productData['profit_amount'],
     $productData['shipping_cost'],
     $productData['stock'],
     $productData['category_id'],
@@ -1224,6 +1287,8 @@ if ($action==='update' && $_SERVER['REQUEST_METHOD']==='POST') {
     'price' => $productData['price'],
     'price_compare' => $productData['price_compare'],
     'currency' => $productData['currency'],
+    'cost_price' => $productData['cost_price'],
+    'profit_amount' => $productData['profit_amount'],
     'shipping_cost' => $productData['shipping_cost'],
     'stock' => $productData['stock'],
     'category_id' => $productData['category_id'],

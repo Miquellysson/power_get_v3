@@ -4,6 +4,7 @@
   --bg-dark: #0b1220;
   --fg-light: #111827;
   --fg-dark: #e5e7eb;
+  --category-font-family: 'Inter', 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 html[data-theme='light'] {
@@ -22,10 +23,14 @@ body {
   font-family: system-ui, sans-serif;
   transition: background 0.3s, color 0.3s;
 }
+
+.store-brand-name {
+  font-family: var(--category-font-family, 'Inter', 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
 @media (max-width: 640px) {
   .mobile-grid-products {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
   }
   .product-card .p-4 {
@@ -56,6 +61,12 @@ body {
   }
 }
 
+@media (max-width: 420px) {
+  .mobile-grid-products {
+    grid-template-columns: 1fr;
+  }
+}
+
 .footer-social {
   display: flex;
   gap: 12px;
@@ -78,4 +89,39 @@ body {
   color: #fff;
   border-color: transparent;
   transform: translateY(-1px);
+}
+.hours-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.hours-pill__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  position: relative;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+}
+.hours-pill--open {
+  color: #15803d;
+  background: rgba(34,197,94,.12);
+  border-color: rgba(34,197,94,.3);
+}
+.hours-pill--open .hours-pill__dot {
+  box-shadow: 0 0 0 3px rgba(34,197,94,.25);
+}
+.hours-pill--closed {
+  color: #b91c1c;
+  background: rgba(239,68,68,.12);
+  border-color: rgba(239,68,68,.3);
+}
+.hours-pill--closed .hours-pill__dot {
+  box-shadow: 0 0 0 3px rgba(239,68,68,.25);
 }

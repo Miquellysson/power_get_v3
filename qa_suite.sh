@@ -8,7 +8,7 @@ mkdir -p "$SESSION_DIR"
 ADMIN_EMAIL="${ADMIN_EMAIL:-ml@mmlins.combr}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-mkcd61la}"
 
-log() { printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$1"; }
+log() { printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$1" >&2; }
 new_cookie() { mktemp "$SESSION_DIR/cookie.XXXXXX"; }
 
 get_json_value() {
@@ -76,12 +76,16 @@ place_order() {
 
 show_cart() {
   local cookie="$1"
-  curl -sS -b "$cookie" "$BASE_URL/?route=cart" | head -n 40
+  local html
+  html=$(curl -sS -b "$cookie" "$BASE_URL/?route=cart" || true)
+  printf '%s\n' "$html" | head -n 40 || true
 }
 
 order_success() {
   local cookie="$1" url="$2"
-  curl -sS -b "$cookie" "$BASE_URL/$url" | head -n 60
+  local html
+  html=$(curl -sS -b "$cookie" "$BASE_URL/$url" || true)
+  printf '%s\n' "$html" | head -n 60 || true
 }
 
 admin_login_and_orders() {
@@ -105,7 +109,9 @@ admin_login_and_orders() {
     "$BASE_URL/admin.php" > /dev/null || { log "Falha no POST admin"; return; }
 
   log "Listando pedidos (orders.php)"
-  curl -sS -b "$cookie" "$BASE_URL/orders.php" | head -n 60
+  local orders_html
+  orders_html=$(curl -sS -b "$cookie" "$BASE_URL/orders.php" || true)
+  printf '%s\n' "$orders_html" | head -n 60 || true
 }
 
 checkout_square() {
@@ -133,7 +139,7 @@ checkout_square() {
   exit_code=$?
   log "place_order Location: $location"
   log "place_order body (trecho)"
-  printf '%s\n' "$body" | head -n 20
+  printf '%s\n' "$body" | head -n 20 || true
 
   if [[ $exit_code -ne 0 ]]; then
     log "place_order falhou"
@@ -171,7 +177,7 @@ checkout_zelle() {
   exit_code=$?
   log "place_order Location: $location"
   log "place_order body (trecho)"
-  printf '%s\n' "$body" | head -n 20
+  printf '%s\n' "$body" | head -n 20 || true
 
   if [[ $exit_code -ne 0 ]]; then
     log "place_order falhou"

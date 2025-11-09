@@ -323,7 +323,7 @@ if ($action==='view') {
     $addressParts[] = sanitize_html($o['country']);
   }
   $addressHtml = $addressParts ? implode('<br>', $addressParts) : '—';
-  $items = json_decode($o['items_json'] ?? '[]', true) ?: [];
+  $items = order_get_items($pdo, $o);
   $orderCurrency = strtoupper($o['currency'] ?? (cfg()['store']['currency'] ?? 'USD'));
   admin_header('Pedido #'.$id);
 
@@ -338,19 +338,39 @@ if ($action==='view') {
   echo '</div>';
 
   echo '<div class="grid md:grid-cols-3 gap-3">';
+  $costFeatureEnabled = cost_management_enabled();
+  $orderCostTotal = (float)($o['cost_total'] ?? 0);
+  $orderProfitTotal = (float)($o['profit_total'] ?? 0);
   echo '<div class="card md:col-span-2"><div class="card-title">Itens do pedido</div><div class="p-3 overflow-x-auto">';
-  echo '<table class="table"><thead><tr><th>SKU</th><th>Produto</th><th>Qtd</th><th>Preço</th><th>Total</th></tr></thead><tbody>';
-  foreach($items as $it){
-    $itemCurrency = $it['currency'] ?? $orderCurrency;
-    $priceValue = (float)($it['price'] ?? 0);
-    $line = $priceValue * (int)$it['qty'];
-    echo '<tr>';
-    echo '<td>'.sanitize_html($it['sku'] ?? '').'</td>';
-    echo '<td>'.sanitize_html($it['name']).'</td>';
-    echo '<td>'.(int)$it['qty'].'</td>';
-    echo '<td>'.format_currency($priceValue, $itemCurrency).'</td>';
-    echo '<td>'.format_currency($line, $itemCurrency).'</td>';
-    echo '</tr>';
+  echo '<table class="table"><thead><tr><th>SKU</th><th>Produto</th><th>Qtd</th><th>Preço</th>';
+  if ($costFeatureEnabled) {
+    echo '<th>Custo</th><th>Lucro</th>';
+  }
+  echo '<th>Total</th></tr></thead><tbody>';
+  if ($items) {
+    foreach($items as $it){
+      $itemCurrency = $it['currency'] ?? $orderCurrency;
+      $priceValue = (float)($it['price'] ?? 0);
+      $line = $priceValue * (int)$it['qty'];
+      $costUnit = isset($it['cost_price']) ? (float)$it['cost_price'] : null;
+      $profitUnit = isset($it['profit_value']) ? (float)$it['profit_value'] : null;
+      $lineCost = ($costUnit !== null) ? $costUnit * (int)$it['qty'] : null;
+      $lineProfit = ($profitUnit !== null) ? $profitUnit * (int)$it['qty'] : null;
+      echo '<tr>';
+      echo '<td>'.sanitize_html($it['sku'] ?? '').'</td>';
+      echo '<td>'.sanitize_html($it['name']).'</td>';
+      echo '<td>'.(int)$it['qty'].'</td>';
+      echo '<td>'.format_currency($priceValue, $itemCurrency).'</td>';
+      if ($costFeatureEnabled) {
+        echo '<td>'.($lineCost !== null ? format_currency($lineCost, $itemCurrency) : '—').'</td>';
+        echo '<td>'.($lineProfit !== null ? format_currency($lineProfit, $itemCurrency) : '—').'</td>';
+      }
+      echo '<td>'.format_currency($line, $itemCurrency).'</td>';
+      echo '</tr>';
+    }
+  } else {
+    $colspan = $costFeatureEnabled ? 7 : 5;
+    echo '<tr><td colspan="'.$colspan.'" class="text-center text-gray-500">Nenhum item encontrado para este pedido.</td></tr>';
   }
   echo '</tbody></table></div></div>';
 
@@ -361,6 +381,10 @@ if ($action==='view') {
   echo '<div class="mb-2">Subtotal: <strong>'.format_currency((float)$o['subtotal'], $orderCurrency).'</strong></div>';
   echo '<div class="mb-2">Frete: <strong>'.format_currency((float)$o['shipping_cost'], $orderCurrency).'</strong></div>';
   echo '<div class="mb-2">Total: <strong>'.format_currency((float)$o['total'], $orderCurrency).'</strong></div>';
+  if ($costFeatureEnabled) {
+    echo '<div class="mb-2">Custo total: <strong>'.format_currency($orderCostTotal, $orderCurrency).'</strong></div>';
+    echo '<div class="mb-2">Lucro estimado: <strong>'.format_currency($orderProfitTotal, $orderCurrency).'</strong></div>';
+  }
   echo '<div class="mb-2">Pagamento: <strong>'.sanitize_html($o['payment_method']).'</strong></div>';
   if (!empty($o['payment_ref'])) echo '<div class="mb-2">Ref: <a class="text-blue-600 underline" href="'.sanitize_html($o['payment_ref']).'" target="_blank">abrir</a></div>';
   echo '<div class="mb-2">Status: '.status_badge($o['status']).'</div>';
@@ -454,6 +478,9 @@ echo '  <div class="toolbar-actions">';
 if ($isSuperAdmin) {
   echo '    <a class="btn btn-alt btn-sm" href="orders.php?action=export"><i class="fa-solid fa-file-arrow-down mr-2"></i>Exportar pedidos</a>';
   echo '    <a class="btn btn-ghost btn-sm" href="orders.php?action=import"><i class="fa-solid fa-file-arrow-up mr-2"></i>Importar</a>';
+}
+if ($canManageOrders) {
+  echo '    <a class="btn btn-primary btn-sm" href="order_create.php"><i class="fa-solid fa-plus mr-2"></i>Novo pedido</a>';
 }
 echo '  </div>';
 echo '</div>';

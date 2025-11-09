@@ -5,7 +5,9 @@ require __DIR__.'/lib/db.php';
 require __DIR__.'/lib/utils.php';
 
 header('Content-Type: application/manifest+json; charset=utf-8');
-header('Cache-Control: public, max-age=600');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+header('Pragma: no-cache');
+header('Expires: Wed, 11 Jan 1984 05:00:00 GMT');
 
 $cfg = cfg();
 $name = setting_get('pwa_name', $cfg['store']['name'] ?? 'Get Power Research');

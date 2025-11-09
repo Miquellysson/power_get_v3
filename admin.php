@@ -42,13 +42,31 @@ function admin_header($title='Admin - Get Power Research', $withLayout=true){
   $storeName = setting_get('store_name', $cfg['store']['name'] ?? 'Get Power Research');
   $currentScript = basename($_SERVER['SCRIPT_NAME']);
   $route = $_GET['route'] ?? '';
+  $adminInfo = function_exists('current_admin') ? current_admin() : null;
+  $adminName = trim((string)($adminInfo['name'] ?? ($_SESSION['admin_name'] ?? 'Administrador')));
+  if ($adminName === '') {
+    $adminName = 'Administrador';
+  }
+  $timezoneSetting = setting_get('store_timezone', 'America/Sao_Paulo');
+  try {
+    $tz = new DateTimeZone($timezoneSetting);
+  } catch (Throwable $e) {
+    $tz = new DateTimeZone('UTC');
+  }
+  $now = new DateTime('now', $tz);
+  $currentTimestamp = $now->format('d/m/Y H:i');
+  $timezoneLabel = str_replace('_', ' ', $tz->getName());
 
   // Flag para o footer
   $GLOBALS['_ADMIN_WITH_LAYOUT'] = $withLayout;
 
   echo '<!doctype html><html lang="pt-br"><head><meta charset="utf-8">';
   echo '<meta name="viewport" content="width=device-width,initial-scale=1">';
-  echo '<link rel="manifest" href="/manifest-admin.webmanifest">';
+  echo '<meta http-equiv="Cache-Control" content="no-cache, no-store, max-age=0, must-revalidate">';
+  echo '<meta http-equiv="Pragma" content="no-cache">';
+  echo '<meta http-equiv="Expires" content="0">';
+  $adminManifest = function_exists('cache_busted_url') ? '/' . ltrim(cache_busted_url('manifest-admin.webmanifest'), '/') : '/manifest-admin.webmanifest';
+  echo '<link rel="manifest" href="'.$adminManifest.'">';
   echo '<meta name="theme-color" content="#2060C8">';
   echo '<script src="https://cdn.tailwindcss.com"></script>';
   echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">';
@@ -80,7 +98,14 @@ function admin_header($title='Admin - Get Power Research', $withLayout=true){
     .hero .glass{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25)}
     html[data-theme=dark] .hero .glass{background:rgba(19,26,45,.45); border-color:rgba(79,136,255,.25)}
   </style>';
+  $cacheBusterToken = function_exists('cache_bust_current_token') ? cache_bust_current_token() : (string)time();
   $swRegisterUrl = function_exists('service_worker_url') ? service_worker_url() : '/sw.js';
+  $swFallbackList = [$swRegisterUrl];
+  if (function_exists('cache_busted_url')) {
+    $swFallbackList[] = '/' . ltrim(cache_busted_url('sw.js'), '/');
+  }
+  $swFallbackList[] = '/sw.js';
+  $swFallbacks = array_values(array_unique($swFallbackList));
   $swRegisterUrlJs = json_encode($swRegisterUrl);
   echo '<script>
   (function(){
@@ -89,7 +114,9 @@ function admin_header($title='Admin - Get Power Research', $withLayout=true){
     apply(localStorage.getItem(key)||"light");
     document.addEventListener("click",e=>{var b=e.target.closest("[data-action=toggle-theme]"); if(!b) return; var t=(localStorage.getItem(key)||"light")==="light"?"dark":"light"; localStorage.setItem(key,t); apply(t);});
     var swUrl = '.$swRegisterUrlJs.';
+    window.__CACHE_BUSTER__ = '.json_encode($cacheBusterToken).';
     window.__SW_URL__ = swUrl;
+    window.__SW_URLS__ = '.json_encode($swFallbacks).';
     window.__APP_NAME__ = window.__APP_NAME__ || '.json_encode($storeName).';
     if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register(swUrl).catch(()=>{})); }
     var deferred=null, btn=null;
@@ -106,7 +133,11 @@ function admin_header($title='Admin - Get Power Research', $withLayout=true){
   echo '      <div class="logo"><i class="fa-solid fa-capsules"></i></div>';
   echo '      <div><div class="font-bold leading-tight">'.sanitize_html($storeName).'</div><div class="text-xs link-muted">Painel Administrativo</div></div>';
   echo '    </div>';
-  echo '    <div class="flex items-center gap-2">';
+  echo '    <div class="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 justify-end flex-wrap md:flex-nowrap">';
+  echo '      <div class="text-right text-sm text-brand-700 leading-tight bg-white/70 px-3 py-1 rounded-lg border border-[rgba(32,96,200,.12)] shadow-sm min-w-[180px]">';
+  echo '        <div class="font-semibold">Seja bem-vindo, <span class="text-brand-600">'.sanitize_html($adminName).'</span></div>';
+  echo '        <div class="text-xs text-gray-500">'.sanitize_html($currentTimestamp).' · '.sanitize_html($timezoneLabel).'</div>';
+  echo '      </div>';
   echo '      <button class="btn btn-ghost hidden" data-action="install-app" title="Adicionar à tela inicial"><i class="fa-solid fa-mobile-screen-button"></i><span class="hidden sm:inline">Instalar</span></button>';
   echo '      <button class="btn btn-ghost" data-action="toggle-theme" title="Alternar tema"><i class="fa-solid fa-circle-half-stroke"></i></button>';
   echo '      <a class="btn btn-ghost" href="index.php" target="_blank"><i class="fa-solid fa-up-right-from-square"></i><span class="hidden sm:inline">Loja</span></a>';

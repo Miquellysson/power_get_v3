@@ -24,6 +24,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 if (isset($_GET['lang'])) set_lang($_GET['lang']);
 $d   = lang();
 $cfg = cfg();
+$categoryFontChoiceSetting = setting_get('store_category_font_choice', 'default');
+$categoryFontCustomSetting = setting_get('store_category_font_custom', '');
+$categoryFontData = store_category_font_stack($categoryFontChoiceSetting, $categoryFontCustomSetting);
+$categoryFontFamilyValue = trim((string)($categoryFontData['stack'] ?? ''));
+$categoryFontRequires = $categoryFontData['requires'] ?? [];
 
 /* ======================
    Router
@@ -153,6 +158,10 @@ function proxy_img($url) {
   if ($url !== '' && $url[0] !== '/') {
     $url = '/' . ltrim($url, '/');
   }
+  if (function_exists('cache_busted_url')) {
+    $versioned = cache_busted_url(ltrim($url, '/'));
+    return '/' . ltrim($versioned, '/');
+  }
   return $url;
 }
 
@@ -207,6 +216,7 @@ if (!function_exists('whatsapp_widget_config')) {
   }
 }
 
+if (!function_exists('load_payment_methods')) {
 function load_payment_methods(PDO $pdo, array $cfg): array {
   static $cache = null;
   if ($cache !== null) {
@@ -388,6 +398,7 @@ function load_payment_methods(PDO $pdo, array $cfg): array {
 
   return $cache;
 }
+}
 
 function payment_placeholders(
   array $method,
@@ -462,6 +473,7 @@ function app_header() {
     $logoUrl = function_exists('cache_busted_url') ? cache_busted_url($logo) : $logo;
   }
   $storeNameHeader = setting_get('store_name', $cfg['store']['name'] ?? 'Get Power Research');
+  $storeHoursStatus = function_exists('store_hours_status') ? store_hours_status() : ['label' => '', 'is_open' => false, 'status_text' => ''];
   $metaTitle = setting_get('store_meta_title', (($cfg['store']['name'] ?? 'Get Power Research').' | Loja'));
   if (!empty($GLOBALS['app_meta_title'])) {
     $metaTitle = (string)$GLOBALS['app_meta_title'];
@@ -470,6 +482,9 @@ function app_header() {
   $pwaShortName = setting_get('pwa_short_name', $pwaName);
   $pwaIconApple = pwa_icon_url(180);
   $pwaIcon512 = pwa_icon_url(512);
+  $a2hsTitleSetting = setting_get('a2hs_title', 'Instalar App '.$storeNameHeader);
+  $a2hsSubtitleSetting = setting_get('a2hs_subtitle', 'Experiência completa no seu dispositivo.');
+  $a2hsButtonSetting = setting_get('a2hs_button_label', 'Instalar App');
 
   // Count carrinho
   $cart_count = 0;
@@ -490,13 +505,17 @@ function app_header() {
 
   echo '<!doctype html><html lang="'.htmlspecialchars($lang).'"><head>';
   echo '  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+  echo '  <meta http-equiv="Cache-Control" content="no-cache, no-store, max-age=0, must-revalidate">';
+  echo '  <meta http-equiv="Pragma" content="no-cache">';
+  echo '  <meta http-equiv="Expires" content="0">';
   echo '  <title>'.htmlspecialchars($metaTitle, ENT_QUOTES, 'UTF-8').'</title>';
   $defaultDescription = setting_get('store_meta_description', ($cfg['store']['name'] ?? 'Get Power Research').' — experiência tipo app: rápida, responsiva e segura.');
   if (!empty($GLOBALS['app_meta_description'])) {
     $defaultDescription = (string)$GLOBALS['app_meta_description'];
   }
   echo '  <meta name="description" content="'.htmlspecialchars($defaultDescription, ENT_QUOTES, 'UTF-8').'">';
-  echo '  <link rel="manifest" href="/manifest.php">';
+  $manifestHref = function_exists('cache_busted_url') ? '/' . ltrim(cache_busted_url('manifest.php'), '/') : '/manifest.php';
+  echo '  <link rel="manifest" href="'.$manifestHref.'">';
   $themeColor = setting_get('theme_color', '#2060C8');
   echo '  <meta name="theme-color" content="'.htmlspecialchars($themeColor, ENT_QUOTES, 'UTF-8').'">';
   echo '  <meta name="application-name" content="'.htmlspecialchars($pwaShortName, ENT_QUOTES, 'UTF-8').'">';
@@ -516,16 +535,60 @@ function app_header() {
   $accentJson = json_encode($accentPalette, JSON_UNESCAPED_SLASHES);
   echo "  <script>tailwind.config = { theme: { extend: { colors: { brand: $brandJson, accent: $accentJson }}}};</script>";
   echo '  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">';
+  $googleFontFamilies = [];
   if ($activeTheme === 'food') {
+    $googleFontFamilies[] = 'Inter:wght@400;500;600;700';
+    $googleFontFamilies[] = 'Pacifico';
+    $googleFontFamilies[] = 'Playfair+Display:wght@400;600;700';
+  }
+  foreach ($categoryFontRequires as $reqFont) {
+    if ($reqFont === 'inter') {
+      $googleFontFamilies[] = 'Inter:wght@400;500;600;700';
+    } elseif ($reqFont === 'pacifico') {
+      $googleFontFamilies[] = 'Pacifico';
+    } elseif ($reqFont === 'playfair') {
+      $googleFontFamilies[] = 'Playfair+Display:wght@400;600;700';
+    } elseif ($reqFont === 'cormorant') {
+      $googleFontFamilies[] = 'Cormorant+Garamond:wght@400;600;700';
+    }
+  }
+  $googleFontFamilies = array_values(array_unique(array_filter($googleFontFamilies)));
+  if ($googleFontFamilies) {
     echo '  <link rel="preconnect" href="https://fonts.googleapis.com">';
     echo '  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
-    echo '  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pacifico&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">';
+    $fontQuery = implode('&family=', $googleFontFamilies);
+    echo '  <link href="https://fonts.googleapis.com/css2?family='.$fontQuery.'&display=swap" rel="stylesheet">';
+  }
+  if ($activeTheme === 'food') {
     echo '  <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.3.0/remixicon.min.css" rel="stylesheet">';
   }
+  $cacheBusterToken = function_exists('cache_bust_current_token') ? cache_bust_current_token() : (string)time();
   $a2hsScript = function_exists('asset_url') ? '/' . ltrim(asset_url('assets/js/a2hs.js'), '/') : '/assets/js/a2hs.js?v=3';
   $swRegisterUrl = function_exists('service_worker_url') ? service_worker_url() : '/sw.js';
-  $a2hsIcon = function_exists('asset_url') ? '/' . ltrim(asset_url('assets/icons/farma-192.png'), '/') : '/assets/icons/farma-192.png';
-  echo '  <script>window.__SW_URL__ = '.json_encode($swRegisterUrl).';window.__A2HS_ICON__ = '.json_encode($a2hsIcon).';window.__APP_ICON__ = window.__APP_ICON__ || window.__A2HS_ICON__;window.__APP_NAME__ = '.json_encode($storeNameHeader).';</script>';
+  $swFallbackList = [$swRegisterUrl];
+  if (function_exists('cache_busted_url')) {
+    $swFallbackList[] = '/' . ltrim(cache_busted_url('sw.js'), '/');
+  }
+  $swFallbackList[] = '/sw.js';
+  $swFallbacks = array_values(array_unique($swFallbackList));
+  $a2hsIconSetting = setting_get('a2hs_icon', '');
+  if ($a2hsIconSetting) {
+    $iconPath = ltrim($a2hsIconSetting, '/');
+    $a2hsIcon = '/' . ltrim(function_exists('cache_busted_url') ? cache_busted_url($iconPath) : $iconPath, '/');
+  } else {
+    $a2hsIcon = function_exists('asset_url') ? '/' . ltrim(asset_url('assets/icons/farma-192.png'), '/') : '/assets/icons/farma-192.png';
+  }
+  echo '  <script>';
+  echo 'window.__CACHE_BUSTER__ = '.json_encode($cacheBusterToken).';';
+  echo 'window.__SW_URL__ = '.json_encode($swRegisterUrl).';';
+  echo 'window.__SW_URLS__ = '.json_encode($swFallbacks).';';
+  echo 'window.__A2HS_ICON__ = '.json_encode($a2hsIcon).';';
+  echo 'window.__APP_ICON__ = window.__APP_ICON__ || window.__A2HS_ICON__;';
+  echo 'window.__APP_NAME__ = '.json_encode($storeNameHeader).';';
+  echo 'window.__A2HS_TITLE__ = '.json_encode($a2hsTitleSetting).';';
+  echo 'window.__A2HS_SUBTITLE__ = '.json_encode($a2hsSubtitleSetting).';';
+  echo 'window.__A2HS_BUTTON__ = '.json_encode($a2hsButtonSetting).';';
+  echo '</script>';
   echo '  <script defer src="'.$a2hsScript.'"></script>';
 
   // CSS do tema com cache-busting se disponível
@@ -537,6 +600,10 @@ function app_header() {
   if ($activeTheme === 'food') {
     $foodCss = function_exists('asset_url') ? asset_url('assets/theme-food.css') : 'assets/theme-food.css';
     echo '  <link href="'.$foodCss.'" rel="stylesheet">';
+  }
+  if ($categoryFontFamilyValue !== '') {
+    $safeFontValue = htmlspecialchars($categoryFontFamilyValue, ENT_NOQUOTES, 'UTF-8');
+    echo '  <style>:root{--category-font-family:'.$safeFontValue.';}</style>';
   }
   $brandPrimary = $brandPalette['600'] ?? $themeColor;
   echo '  <style>:root{--brand-primary:'.htmlspecialchars($brandPrimary, ENT_QUOTES, 'UTF-8').';}
@@ -587,6 +654,15 @@ function app_header() {
   $headerSubline = setting_get('header_subline', 'Loja Online');
   echo '          <div class="font-semibold leading-tight store-brand-name">'.htmlspecialchars($storeNameHeader, ENT_QUOTES, 'UTF-8').'</div>';
   echo '          <div class="text-xs text-gray-500 store-brand-subline">'.htmlspecialchars($headerSubline, ENT_QUOTES, 'UTF-8').'</div>';
+  $hoursLabel = trim((string)($storeHoursStatus['label'] ?? ''));
+  if (!empty($storeHoursStatus['enabled']) && $hoursLabel !== '') {
+    $isOpen = !empty($storeHoursStatus['is_open']);
+    $openLabel = $d['open_now'] ?? ($storeHoursStatus['status_text'] ?? 'Aberto agora');
+    $closedLabel = $d['closed_now'] ?? ($storeHoursStatus['status_text'] ?? 'Fechado agora');
+    $statusText = $isOpen ? $openLabel : $closedLabel;
+    $hoursClass = $isOpen ? 'hours-pill hours-pill--open' : 'hours-pill hours-pill--closed';
+    echo '          <div class="'.$hoursClass.'"><span class="hours-pill__dot" aria-hidden="true"></span><span class="hours-pill__status">'.htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8').'</span><span class="hours-pill__label">'.htmlspecialchars($hoursLabel, ENT_QUOTES, 'UTF-8').'</span></div>';
+  }
   echo '        </div>';
   echo '      </a>';
   $navClasses = 'mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-2 text-sm text-brand-700 md:mt-0 md:pt-0 md:border-t-0 md:ml-6 md:flex-nowrap';
@@ -650,6 +726,10 @@ function app_footer() {
     $footerLogoSrc = function_exists('cache_busted_url') ? cache_busted_url($footerLogoPath) : $footerLogoPath;
     $footerLogoElement = '<img src="'.htmlspecialchars($footerLogoSrc, ENT_QUOTES, 'UTF-8').'" alt="Logo da loja" loading="lazy">';
   }
+  $footerHeadingIcon = function (string $iconClass): string {
+    $iconSafe = htmlspecialchars($iconClass, ENT_QUOTES, 'UTF-8');
+    return '<span class="footer-heading-icon"><i class="'.$iconSafe.'"></i></span>';
+  };
   echo '<footer class="mt-12 bg-white border-t">';
   echo '  <div class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-4 gap-8 text-sm">';
   echo '    <div>';
@@ -674,7 +754,7 @@ function app_footer() {
   }
   echo '    </div>';
   echo '    <div>';
-  echo '      <div class="font-semibold mb-2 footer-heading">'.$footerLogoElement.'<span>Links</span></div>';
+  echo '      <div class="font-semibold mb-2 footer-heading">'.$footerHeadingIcon('fa-solid fa-link').'<span>Links</span></div>';
   echo '      <ul class="space-y-2 text-gray-600">';
   if ($footerLinks) {
     foreach ($footerLinks as $link) {
@@ -694,7 +774,7 @@ function app_footer() {
   echo '      </ul>';
   echo '    </div>';
   echo '    <div>';
-  echo '      <div class="font-semibold mb-2 footer-heading">'.$footerLogoElement.'<span>Contato</span></div>';
+  echo '      <div class="font-semibold mb-2 footer-heading">'.$footerHeadingIcon('fa-solid fa-headset').'<span>Contato</span></div>';
   echo '      <ul class="space-y-2 text-gray-600">';
   $storeConfig = cfg();
   echo '        <li><i class="fa-solid fa-envelope mr-2"></i>'.htmlspecialchars(setting_get('store_email', $storeConfig['store']['support_email'] ?? 'contato@getpowerresearch.com')).'</li>';
@@ -703,7 +783,7 @@ function app_footer() {
   echo '      </ul>';
   echo '    </div>';
   echo '    <div>';
-  echo '      <div class="font-semibold mb-2 footer-heading">'.$footerLogoElement.'<span>Idioma</span></div>';
+  echo '      <div class="font-semibold mb-2 footer-heading">'.$footerHeadingIcon('fa-solid fa-language').'<span>Idioma</span></div>';
   echo '      <div class="flex gap-2">';
   echo '        <button class="chip px-3 py-1 rounded" onclick="changeLanguage(\'pt\')">🇧🇷 PT</button>';
   echo '        <button class="chip px-3 py-1 rounded" onclick="changeLanguage(\'en\')">🇺🇸 EN</button>';
@@ -918,7 +998,16 @@ function app_footer() {
       }
       // registra SW com versão (evita cache antigo)
       if ("serviceWorker" in navigator) {
-        const swUrl = window.__SW_URL__ || "sw.js";
+        const swBase = window.__SW_URL__ || "sw.js";
+        const cacheToken = typeof window.__CACHE_BUSTER__ === "string" && window.__CACHE_BUSTER__.length
+          ? window.__CACHE_BUSTER__
+          : "";
+        const swUrl = (function(url){
+          if (!cacheToken) return url;
+          if (/[?&](?:v|cb)=/i.test(url)) return url;
+          const glue = url.includes("?") ? "&" : "?";
+          return url + glue + "cb=" + encodeURIComponent(cacheToken);
+        })(swBase);
         try { navigator.serviceWorker.register(swUrl); } catch(e){}
       }
     });
@@ -1098,6 +1187,44 @@ if (!function_exists('render_food_theme_home')) {
     $showHistory = !empty($historyHeading) || !empty($historyCards) || !empty($historyStats) || $historyImage !== '';
     $showHighlight = !empty($view['show_highlight']);
     $showContact = !empty($view['show_contact']);
+    $groupProductsByCategory = !empty($view['products_group_by_category']);
+    $uncategorizedLabel = $view['products_uncategorized_label'] ?? 'Outros sabores';
+    $renderProductCards = static function (array $items): string {
+      if (empty($items)) {
+        return '';
+      }
+      ob_start();
+      foreach ($items as $item) {
+        ?>
+        <article class="food-product-card">
+          <a class="food-product-card__image" href="<?= $item['url']; ?>">
+            <img src="<?= $item['image']; ?>" alt="<?= $item['name']; ?>">
+            <?php if ($item['category'] !== ''): ?><span class="food-chip food-chip--floating"><?= $item['category']; ?></span><?php endif; ?>
+            <?php if ($item['featured']): ?><span class="food-chip food-chip--badge">Destaque</span><?php endif; ?>
+          </a>
+          <div class="food-product-card__body">
+            <div class="food-product-card__sku">SKU: <?= $item['sku']; ?></div>
+            <h3 class="food-product-card__title"><a href="<?= $item['url']; ?>"><?= $item['name']; ?></a></h3>
+            <?php if ($item['description'] !== ''): ?><p class="food-product-card__text"><?= $item['description']; ?></p><?php endif; ?>
+            <div class="food-product-card__price">
+              <?php if ($item['compare'] !== ''): ?><span class="food-product-card__price-old"><?= $item['compare']; ?></span><?php endif; ?>
+              <span class="food-product-card__price-now"><?= $item['price']; ?></span>
+              <span class="food-product-card__stock <?= $item['in_stock'] ? 'is-available' : 'is-empty'; ?>"><?= $item['in_stock'] ? 'Em estoque' : 'Indisponível'; ?></span>
+            </div>
+            <div class="food-product-card__actions">
+              <a class="food-button food-button--ghost" href="<?= $item['url']; ?>"><i class="fa-solid fa-eye"></i> Ver detalhes</a>
+              <?php if ($item['in_stock']): ?>
+                <button class="food-button" type="button" onclick="addToCart(<?= $item['id']; ?>, <?= htmlspecialchars($item['name_json'], ENT_QUOTES, 'UTF-8'); ?>, 1)"><i class="fa-solid fa-cart-plus"></i> Adicionar</button>
+              <?php else: ?>
+                <button class="food-button food-button--disabled" type="button" disabled><i class="fa-solid fa-ban"></i> Indisponível</button>
+              <?php endif; ?>
+            </div>
+          </div>
+        </article>
+        <?php
+      }
+      return ob_get_clean();
+    };
     ?>
     <?php if ($showHero): ?>
       <section id="inicio" class="<?= htmlspecialchars($heroClass, ENT_QUOTES, 'UTF-8'); ?>"<?= $heroStyleAttr; ?>>
@@ -1226,35 +1353,35 @@ if (!function_exists('render_food_theme_home')) {
               <a class="food-button" href="?route=home">Limpar filtros</a>
             </div>
           <?php else: ?>
-            <div class="food-products-grid">
-              <?php foreach ($products as $item): ?>
-                <article class="food-product-card">
-                  <a class="food-product-card__image" href="<?= $item['url']; ?>">
-                    <img src="<?= $item['image']; ?>" alt="<?= $item['name']; ?>">
-                    <?php if ($item['category'] !== ''): ?><span class="food-chip food-chip--floating"><?= $item['category']; ?></span><?php endif; ?>
-                    <?php if ($item['featured']): ?><span class="food-chip food-chip--badge">Destaque</span><?php endif; ?>
-                  </a>
-                  <div class="food-product-card__body">
-                    <div class="food-product-card__sku">SKU: <?= $item['sku']; ?></div>
-                    <h3 class="food-product-card__title"><a href="<?= $item['url']; ?>"><?= $item['name']; ?></a></h3>
-                    <?php if ($item['description'] !== ''): ?><p class="food-product-card__text"><?= $item['description']; ?></p><?php endif; ?>
-                    <div class="food-product-card__price">
-                      <?php if ($item['compare'] !== ''): ?><span class="food-product-card__price-old"><?= $item['compare']; ?></span><?php endif; ?>
-                      <span class="food-product-card__price-now"><?= $item['price']; ?></span>
-                      <span class="food-product-card__stock <?= $item['in_stock'] ? 'is-available' : 'is-empty'; ?>"><?= $item['in_stock'] ? 'Em estoque' : 'Indisponível'; ?></span>
+            <?php if ($groupProductsByCategory): ?>
+              <?php
+                $groupedProducts = [];
+                foreach ($products as $productItem) {
+                  $groupKey = $productItem['category'] !== '' ? $productItem['category'] : $uncategorizedLabel;
+                  if (!isset($groupedProducts[$groupKey])) {
+                    $groupedProducts[$groupKey] = [];
+                  }
+                  $groupedProducts[$groupKey][] = $productItem;
+                }
+              ?>
+              <div class="food-category-groups space-y-10">
+                <?php foreach ($groupedProducts as $categoryName => $groupItems): ?>
+                  <div class="food-category-group">
+                    <div class="food-category-heading">
+                      <span class="font-semibold leading-tight store-brand-name text-lg md:text-xl"><?= $categoryName; ?></span>
+                      <span class="food-category-heading__line" aria-hidden="true"></span>
                     </div>
-                    <div class="food-product-card__actions">
-                      <a class="food-button food-button--ghost" href="<?= $item['url']; ?>"><i class="fa-solid fa-eye"></i> Ver detalhes</a>
-                      <?php if ($item['in_stock']): ?>
-                        <button class="food-button" type="button" onclick="addToCart(<?= $item['id']; ?>, <?= htmlspecialchars($item['name_json'], ENT_QUOTES, 'UTF-8'); ?>, 1)"><i class="fa-solid fa-cart-plus"></i> Adicionar</button>
-                      <?php else: ?>
-                        <button class="food-button food-button--disabled" type="button" disabled><i class="fa-solid fa-ban"></i> Indisponível</button>
-                      <?php endif; ?>
+                    <div class="food-products-grid mt-5">
+                      <?= $renderProductCards($groupItems); ?>
                     </div>
                   </div>
-                </article>
-              <?php endforeach; ?>
-            </div>
+                <?php endforeach; ?>
+              </div>
+            <?php else: ?>
+              <div class="food-products-grid">
+                <?= $renderProductCards($products); ?>
+              </div>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       </section>
@@ -1272,16 +1399,6 @@ if (!function_exists('render_food_theme_home')) {
             <?php if ($historyDescription !== ''): ?>
               <p class="text-base text-amber-900/90 leading-relaxed"><?= $historyDescription; ?></p>
             <?php endif; ?>
-
-          </div>
-          <div class="food-history__image">
-            <?php if ($historyImage !== ''): ?>
-              <img src="<?= $historyImage; ?>" alt="História Rancho Nossa Terra">
-            <?php else: ?>
-              <img src="https://images.unsplash.com/photo-1528712306091-ed0763094c98?auto=format&fit=crop&w=800&q=80" alt="Cozinha artesanal brasileira">
-            <?php endif; ?>
-          </div>
-          <div class="food-history__extra">
             <?php if (!empty($historyStats)): ?>
               <div class="food-history__stats">
                 <?php foreach ($historyStats as $stat): ?>
@@ -1291,6 +1408,13 @@ if (!function_exists('render_food_theme_home')) {
                   </div>
                 <?php endforeach; ?>
               </div>
+            <?php endif; ?>
+          </div>
+          <div class="food-history__image">
+            <?php if ($historyImage !== ''): ?>
+              <img src="<?= $historyImage; ?>" alt="História Rancho Nossa Terra">
+            <?php else: ?>
+              <img src="https://images.unsplash.com/photo-1528712306091-ed0763094c98?auto=format&fit=crop&w=800&q=80" alt="Cozinha artesanal brasileira">
             <?php endif; ?>
           </div>
         </div>
@@ -1709,6 +1833,9 @@ if ($route === 'home') {
       $historyStatsView = [];
       if (!empty($themeFoodConfig['history_stats']) && is_array($themeFoodConfig['history_stats'])) {
         foreach ($themeFoodConfig['history_stats'] as $stat) {
+          if (isset($stat['enabled']) && !$stat['enabled']) {
+            continue;
+          }
           $color = strtoupper(trim((string)($stat['color'] ?? '#16A34A')));
           if (!preg_match('/^#[0-9A-F]{3}(?:[0-9A-F]{3})?$/', $color)) {
             $color = '#16A34A';
@@ -1766,6 +1893,8 @@ if ($route === 'home') {
         'hero_stats' => $heroStatsData,
         'products_heading' => htmlspecialchars(trim((string)($themeFoodConfig['products_heading'] ?? 'Nossos Produtos')), ENT_QUOTES, 'UTF-8'),
         'products_subheading' => htmlspecialchars(trim((string)($themeFoodConfig['products_subheading'] ?? '')), ENT_QUOTES, 'UTF-8'),
+        'products_group_by_category' => !empty($themeFoodConfig['products_group_by_category']),
+        'products_uncategorized_label' => htmlspecialchars(($themeFoodConfig['products_uncategorized_label'] ?? '') !== '' ? $themeFoodConfig['products_uncategorized_label'] : 'Outros sabores', ENT_QUOTES, 'UTF-8'),
         'search_label' => htmlspecialchars($d['search'] ?? 'Buscar', ENT_QUOTES, 'UTF-8'),
         'search_query' => $q,
         'categories' => $categoriesData,
@@ -2564,6 +2693,21 @@ if ($route === 'checkout') {
       $initialStateOptions .= '<option value="'.$stateCode.'">'.$stateName.'</option>';
     }
   }
+  $cityGroups = checkout_group_cities();
+  $initialStateCode = strtoupper($initialStates[0]['code'] ?? '');
+  $initialCityKey = $initialStateCode ? ($defaultCountryOption.'::'.$initialStateCode) : '';
+  $initialCities = ($initialCityKey && isset($cityGroups[$initialCityKey])) ? $cityGroups[$initialCityKey] : [];
+  $initialCityOptions = '';
+  if ($initialCities) {
+    foreach ($initialCities as $cityName) {
+      $cityLabel = htmlspecialchars($cityName, ENT_QUOTES, 'UTF-8');
+      $initialCityOptions .= '<option value="'.$cityLabel.'">'.$cityLabel.'</option>';
+    }
+  }
+  $cityPlaceholderText = ($d['city'] ?? 'Cidade').' *';
+  $statePlaceholderText = ($d['state'] ?? 'Estado').' *';
+  $cityPlaceholderAttr = htmlspecialchars($cityPlaceholderText, ENT_QUOTES, 'UTF-8');
+  $statePlaceholderAttr = htmlspecialchars($statePlaceholderText, ENT_QUOTES, 'UTF-8');
 
   echo '        <div class="grid md:grid-cols-2 gap-3">';
   echo '          <input class="px-4 py-3 border rounded-lg" name="first_name" placeholder="Nome *" required>';
@@ -2571,7 +2715,18 @@ if ($route === 'checkout') {
   echo '          <select class="px-4 py-3 border rounded-lg md:col-span-2" name="country" id="checkout-country" required>'.$countrySelectOptions.'</select>';
   echo '          <input class="px-4 py-3 border rounded-lg md:col-span-2" name="address1" placeholder="Nome da rua e número da casa *" required>';
   echo '          <input class="px-4 py-3 border rounded-lg md:col-span-2" name="address2" placeholder="Adicionar apartamento, suíte, unidade, etc." >';
-  echo '          <input class="px-4 py-3 border rounded-lg" name="city" placeholder="Cidade *" required>';
+  $citySelectClass = $initialCities ? '' : ' hidden';
+  $cityInputClass = $initialCities ? ' hidden' : '';
+  $citySelectName = $initialCities ? 'city' : 'city_select';
+  $citySelectAttr = $initialCities ? 'required' : 'disabled';
+  $cityInputName = $initialCities ? 'city_text' : 'city';
+  $cityInputAttr = $initialCities ? 'disabled' : 'required';
+  echo '          <div id="city-select-wrapper" class="md:col-span-1'.$citySelectClass.'">';
+  echo '            <select class="px-4 py-3 border rounded-lg w-full" name="'.$citySelectName.'" id="checkout-city" '.$citySelectAttr.'>'.$initialCityOptions.'</select>';
+  echo '          </div>';
+  echo '          <div id="city-input-wrapper" class="md:col-span-1'.$cityInputClass.'">';
+  echo '            <input class="px-4 py-3 border rounded-lg w-full" type="text" '.$cityInputAttr.' name="'.$cityInputName.'" id="checkout-city-text" placeholder="'.$cityPlaceholderAttr.'">';
+  echo '          </div>';
   $stateSelectClass = $initialStates ? '' : ' hidden';
   $stateInputClass = $initialStates ? ' hidden' : '';
   $stateSelectName = $initialStates ? 'state' : 'state_select';
@@ -2582,7 +2737,7 @@ if ($route === 'checkout') {
   echo '            <select class="px-4 py-3 border rounded-lg w-full" name="'.$stateSelectName.'" id="checkout-state" '.$stateSelectAttr.'>'.$initialStateOptions.'</select>';
   echo '          </div>';
   echo '          <div id="state-input-wrapper" class="md:col-span-1'.$stateInputClass.'">';
-  echo '            <input class="px-4 py-3 border rounded-lg w-full" type="text" '.$stateInputAttr.' name="'.$stateInputName.'" id="checkout-state-text" placeholder="Estado *">';
+  echo '            <input class="px-4 py-3 border rounded-lg w-full" type="text" '.$stateInputAttr.' name="'.$stateInputName.'" id="checkout-state-text" placeholder="'.$statePlaceholderAttr.'">';
   echo '          </div>';
   echo '          <input class="px-4 py-3 border rounded-lg" name="zipcode" placeholder="CEP *" required>';
   echo '          <input class="px-4 py-3 border rounded-lg" name="email" type="email" placeholder="E-mail *" required>';
@@ -2844,16 +2999,76 @@ echo '      </div>';
 
   $stateGroupsJson = json_encode($stateGroups, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
   $defaultCountryJson = json_encode($defaultCountryOption, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-  echo '<script>window.checkoutStateMap = '.$stateGroupsJson.';window.checkoutDefaultCountry = '.$defaultCountryJson.';</script>';
+  $cityGroupsJson = json_encode($cityGroups, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  echo '<script>window.checkoutStateMap = '.$stateGroupsJson.';window.checkoutDefaultCountry = '.$defaultCountryJson.';window.checkoutCityMap = '.$cityGroupsJson.';</script>';
 
   echo "<script>
     (function(){
       const stateMap = window.checkoutStateMap || {};
+      const cityMap = window.checkoutCityMap || {};
       const countrySelectEl = document.getElementById('checkout-country');
       const stateSelectEl = document.getElementById('checkout-state');
       const stateSelectWrapper = document.getElementById('state-select-wrapper');
       const stateInputWrapper = document.getElementById('state-input-wrapper');
       const stateInputEl = document.getElementById('checkout-state-text');
+      const citySelectEl = document.getElementById('checkout-city');
+      const citySelectWrapper = document.getElementById('city-select-wrapper');
+      const cityInputWrapper = document.getElementById('city-input-wrapper');
+      const cityInputEl = document.getElementById('checkout-city-text');
+
+      function applyCityMode(useSelect) {
+        if (!citySelectEl || !cityInputEl || !citySelectWrapper || !cityInputWrapper) {
+          return;
+        }
+        if (useSelect) {
+          citySelectWrapper.classList.remove('hidden');
+          citySelectEl.disabled = false;
+          citySelectEl.required = true;
+          citySelectEl.name = 'city';
+          cityInputWrapper.classList.add('hidden');
+          cityInputEl.disabled = true;
+          cityInputEl.required = false;
+          cityInputEl.name = 'city_text';
+          cityInputEl.value = '';
+          if (!citySelectEl.value && citySelectEl.options.length) {
+            citySelectEl.value = citySelectEl.options[0].value;
+          }
+        } else {
+          citySelectWrapper.classList.add('hidden');
+          if (citySelectEl) {
+            citySelectEl.disabled = true;
+            citySelectEl.required = false;
+            citySelectEl.name = 'city_select';
+          }
+          cityInputWrapper.classList.remove('hidden');
+          cityInputEl.disabled = false;
+          cityInputEl.required = true;
+          cityInputEl.name = 'city';
+        }
+      }
+
+      function updateCityOptions(countryCode, stateCode) {
+        if (!citySelectEl) {
+          return;
+        }
+        const country = (countryCode || '').toUpperCase();
+        const state = (stateCode || '').toUpperCase();
+        const key = country + '::' + state;
+        const cities = state ? (Array.isArray(cityMap[key]) ? cityMap[key] : []) : [];
+        citySelectEl.innerHTML = '';
+        if (cities.length) {
+          cities.forEach(function(name, index) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            if (index === 0) option.selected = true;
+            citySelectEl.appendChild(option);
+          });
+          applyCityMode(true);
+        } else {
+          applyCityMode(false);
+        }
+      }
 
       function applyStateMode(useSelect) {
         if (!stateSelectEl || !stateInputEl || !stateSelectWrapper || !stateInputWrapper) {
@@ -2881,6 +3096,7 @@ echo '      </div>';
           stateInputEl.disabled = false;
           stateInputEl.required = true;
           stateInputEl.name = 'state';
+          applyCityMode(false);
         }
       }
 
@@ -2903,6 +3119,12 @@ echo '      </div>';
           }
         }
         applyStateMode(states.length > 0);
+        if (states.length) {
+          const selectedState = stateSelectEl && stateSelectEl.value ? stateSelectEl.value : (states[0] && states[0].code) || '';
+          updateCityOptions(country, selectedState);
+        } else {
+          applyCityMode(false);
+        }
       }
 
       if (countrySelectEl) {
@@ -2912,6 +3134,13 @@ echo '      </div>';
         });
       } else {
         applyStateMode(false);
+      }
+
+      if (stateSelectEl) {
+        stateSelectEl.addEventListener('change', function(event) {
+          const country = countrySelectEl ? (countrySelectEl.value || window.checkoutDefaultCountry || '') : '';
+          updateCityOptions(country, event.target.value || '');
+        });
       }
 
       const paymentRadios = document.querySelectorAll(\"input[name='payment']\");
@@ -3031,6 +3260,7 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   $statesGrouped = checkout_group_states();
+  $citiesGrouped = checkout_group_cities();
   $deliveryMethodsAvailable = checkout_get_delivery_methods();
 
   $firstName = sanitize_string($_POST['first_name'] ?? '', 120);
@@ -3039,7 +3269,7 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   $phone = sanitize_string($_POST['phone'] ?? '', 60);
   $address1 = sanitize_string($_POST['address1'] ?? '', 255);
   $address2 = sanitize_string($_POST['address2'] ?? '', 255);
-  $city = sanitize_string($_POST['city'] ?? '', 120);
+  $city = sanitize_string($_POST['city'] ?? ($_POST['city_text'] ?? ($_POST['city_select'] ?? '')), 120);
   $stateInput = sanitize_string($_POST['state'] ?? ($_POST['state_text'] ?? ''), 80);
   $zipcode = sanitize_string($_POST['zipcode'] ?? '', 20);
   $country = strtoupper(trim((string)($_POST['country'] ?? '')));
@@ -3079,6 +3309,31 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
       exit;
     }
     $state = sanitize_string($stateNormalized, 80);
+  }
+
+  $cityNormalized = trim($city);
+  $cityKey = $country.'::'.$state;
+  if (!empty($citiesGrouped[$cityKey])) {
+    $validCity = null;
+    foreach ($citiesGrouped[$cityKey] as $cityOption) {
+      if (strcasecmp($cityOption, $cityNormalized) === 0) {
+        $validCity = $cityOption;
+        break;
+      }
+    }
+    if ($validCity === null) {
+      $_SESSION['checkout_error'] = 'Selecione uma cidade válida.';
+      header('Location: ?route=checkout');
+      exit;
+    }
+    $city = $validCity;
+  } else {
+    if ($cityNormalized === '') {
+      $_SESSION['checkout_error'] = 'Informe a cidade.';
+      header('Location: ?route=checkout');
+      exit;
+    }
+    $city = sanitize_string($cityNormalized, 120);
   }
 
   $deliveryMethodCode = '';
@@ -3121,6 +3376,9 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   $st->execute($ids);
 
   $items = []; $subtotal = 0.0; $shipping = 0.0;
+  $costManagementActive = cost_management_enabled();
+  $costAccumulator = 0.0;
+  $profitAccumulator = 0.0;
   foreach ($st as $p) {
     $qty = (int)($cart[$p['id']] ?? 0);
     if ((int)$p['stock'] < $qty) die('Produto '.$p['name'].' sem estoque');
@@ -3134,6 +3392,13 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
       header('Location: ?route=checkout');
       exit;
     }
+    $costUnit = null;
+    $profitUnit = null;
+    if ($costManagementActive) {
+      $costUnit = $p['cost_price'] !== null ? (float)$p['cost_price'] : null;
+      $profitOverride = $p['profit_amount'] !== null ? (float)$p['profit_amount'] : null;
+      $profitUnit = product_profit_value((float)$p['price'], $costUnit, $profitOverride);
+    }
     $items[] = [
       'id'=>(int)$p['id'],
       'name'=>$p['name'],
@@ -3144,9 +3409,17 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
       'square_link'=> trim((string)($p['square_payment_link'] ?? '')),
       'stripe_link'=> trim((string)($p['stripe_payment_link'] ?? '')),
       'currency'=>$productCurrency,
+      'cost_price'=>$costUnit,
+      'profit_value'=>$profitUnit,
     ];
     $subtotal += (float)$p['price'] * $qty;
     $shipping += $shipCost * $qty;
+    if ($costManagementActive && $costUnit !== null) {
+      $costAccumulator += $costUnit * $qty;
+    }
+    if ($costManagementActive && $profitUnit !== null) {
+      $profitAccumulator += $profitUnit * $qty;
+    }
   }
   $shipping = max(0, $shipping);
   $total = $subtotal + $shipping;
@@ -3154,6 +3427,8 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $cartCurrency = $storeCurrencyBase;
   }
   $_SESSION['cart_currency'] = $cartCurrency;
+  $costTotal = $costManagementActive ? $costAccumulator : 0.0;
+  $profitTotal = $costManagementActive ? $profitAccumulator : 0.0;
 
   $methods = load_payment_methods($pdo, $cfg);
   $methodMap = [];
@@ -3500,13 +3775,15 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
       $hasDeliveryCols = (bool)($chkDelivery && $chkDelivery->fetch());
     } catch (Throwable $e) { $hasDeliveryCols = false; }
 
-    $orderColumns = ['customer_id','items_json','subtotal','shipping_cost','total','currency','payment_method','payment_ref','status','zelle_receipt'];
+    $orderColumns = ['customer_id','items_json','subtotal','shipping_cost','total','cost_total','profit_total','currency','payment_method','payment_ref','status','zelle_receipt'];
     $orderValues = [
       $customer_id,
       json_encode($items, JSON_UNESCAPED_UNICODE),
       $subtotal,
       $shipping,
       $total,
+      $costTotal,
+      $profitTotal,
       $orderCurrency,
       $payment_method,
       $payRef,
@@ -3536,6 +3813,7 @@ if ($route === 'place_order' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // >>> CORREÇÃO CRÍTICA: definir $order_id ANTES do commit <<<
     $order_id = (int)$pdo->lastInsertId();
+    order_sync_items_table($pdo, $order_id, $items);
     $pdo->commit();
 
     send_notification("new_order","Novo Pedido","Pedido #$order_id de ".sanitize_html($fullName),["order_id"=>$order_id,"total"=>$total,"payment_method"=>$payment_method]);

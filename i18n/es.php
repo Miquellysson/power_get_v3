@@ -40,4 +40,6 @@ return [
   'zipcode' => 'Código postal',
   'city' => 'Ciudad',
   'state' => 'Estado/Provincia',
+  'open_now' => 'Abierto ahora',
+  'closed_now' => 'Cerrado ahora',
 ];

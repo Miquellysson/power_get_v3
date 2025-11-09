@@ -34,7 +34,7 @@ body.theme-food {
 }
 
 .theme-food .store-brand-name {
-    font-family: "Pacifico", cursive;
+    font-family: var(--category-font-family, "Pacifico", cursive);
     font-size: 1.35rem;
     color: var(--food-brown);
 }
@@ -328,6 +328,18 @@ body.theme-food {
     gap: 0.4rem;
 }
 
+@media (max-width: 600px) {
+    .food-search {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .food-search__input,
+    .food-search__button {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
 .food-category-chips {
     display: flex;
     gap: 0.65rem;
@@ -453,6 +465,27 @@ body.theme-food {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 1.5rem;
+}
+
+.food-category-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.food-category-heading {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--food-brown);
+}
+
+.food-category-heading__line {
+    display: block;
+    flex: 1;
+    height: 2px;
+    border-radius: 999px;
+    background: rgba(92, 58, 30, 0.25);
 }
 
 .food-product-card {
@@ -699,6 +732,14 @@ body.theme-food {
     scroll-snap-align: start;
 }
 
+@media (min-width: 768px) {
+    .food-history__cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        overflow: visible;
+    }
+}
+
 .food-history__card-icon {
     width: 2.6rem;
     height: 2.6rem;
@@ -735,21 +776,16 @@ body.theme-food {
     object-fit: cover;
 }
 
-.food-history__extra {
-    display: grid;
-    gap: 2rem;
-}
-
 .food-history__stats {
-    margin-top: 2.5rem;
+    margin-top: 1.5rem;
     display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 640px) {
     .food-history__stats {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 

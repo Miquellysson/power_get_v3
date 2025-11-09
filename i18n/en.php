@@ -40,4 +40,6 @@ return [
   'zipcode' => 'Zip code',
   'city' => 'City',
   'state' => 'State',
+  'open_now' => 'Open now',
+  'closed_now' => 'Closed now',
 ];

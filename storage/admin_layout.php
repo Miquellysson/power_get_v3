@@ -8,6 +8,9 @@ if (!function_exists('cfg')) { function cfg(){ return []; } }
 
 function admin_header($title='Admin'){
   $store = setting_get('store_name', cfg()['store']['name'] ?? 'Get Power Research');
+  $systemVersion = '3.0 — criação Mike Lins';
+  $adminRole = function_exists('current_admin_role') ? current_admin_role() : 'admin';
+  $canViewFinance = in_array($adminRole, ['admin','super_admin'], true);
   echo '<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
   echo '<script src="https://cdn.tailwindcss.com"></script>';
   echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">';
@@ -20,7 +23,7 @@ function admin_header($title='Admin'){
   echo '<meta name="theme-color" content="#B91C1C">';
   echo '</head><body>';
   echo '<header class="admin-top"><div class="wrap">';
-  echo '<div class="brand"><div class="logo"><i class="fa-solid fa-capsules"></i></div><div><div class="name">'.sanitize_html($store).'</div><div class="sub">Painel</div></div></div>';
+  echo '<div class="brand"><div class="logo"><i class="fa-solid fa-capsules"></i></div><div><div class="name">'.sanitize_html($store).'</div><div class="sub">Painel · '.$systemVersion.'</div></div></div>';
   echo '<div class="actions"><a class="btn ghost" href="admin.php?route=settings"><i class="fa-solid fa-gear"></i><span>Config</span></a>';
   echo '<a class="btn ghost" href="index.php" target="_blank"><i class="fa-solid fa-store"></i><span>Loja</span></a>';
   echo '<a class="btn ghost" href="admin.php?route=logout"><i class="fa-solid fa-right-from-bracket"></i><span>Sair</span></a></div>';
@@ -28,6 +31,9 @@ function admin_header($title='Admin'){
   echo '<div class="admin-grid"><aside class="admin-side"><nav>';
   $cur = basename($_SERVER['SCRIPT_NAME']);
   echo '<a class="'.($cur==='dashboard.php'?'active':'').'" href="dashboard.php"><i class="fa-solid fa-gauge-high"></i>Dashboard</a>';
+  if ($canViewFinance) {
+    echo '<a class="'.($cur==='financeiro.php'?'active':'').'" href="financeiro.php"><i class="fa-solid fa-coins"></i>Financeiro</a>';
+  }
   echo '<a class="'.($cur==='reports.php'?'active':'').'" href="reports.php"><i class="fa-solid fa-chart-line"></i>Relatórios</a>';
   echo '<a class="'.($cur==='orders.php'?'active':'').'" href="orders.php"><i class="fa-solid fa-receipt"></i>Pedidos</a>';
   echo '<a class="'.($cur==='products.php'?'active':'').'" href="products.php"><i class="fa-solid fa-pills"></i>Produtos</a>';

@@ -40,4 +40,6 @@ return [
   'zipcode' => 'CEP',
   'city' => 'Cidade',
   'state' => 'Estado',
+  'open_now' => 'Aberto agora',
+  'closed_now' => 'Fechado agora',
 ];

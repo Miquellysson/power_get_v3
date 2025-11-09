@@ -1,5 +1,6 @@
 <?php
 // lib/utils.php - Utilitários do sistema Get Power Research (com settings, upload de logo e helpers)
+require_once __DIR__.'/cache_helpers.php';
 
 /* =========================================================================
    Carregamento de configuração (cfg)
@@ -12,25 +13,6 @@ if (!function_exists('cfg')) {
             $config = require __DIR__ . '/../config.php';
         }
         return $config;
-    }
-}
-
-/* =========================================================================
-   Cache busting util
-   ========================================================================= */
-if (!function_exists('cache_busted_url')) {
-    function cache_busted_url(string $path): string {
-        $trimmed = trim($path);
-        if ($trimmed === '' || preg_match('#^(?:https?:|data:|mailto:|tel:)#i', $trimmed)) {
-            return $trimmed;
-        }
-        if (preg_match('/[?&]v=\d+/i', $trimmed)) {
-            return $trimmed;
-        }
-        $absolute = __DIR__ . '/../' . ltrim($trimmed, '/');
-        $version = is_file($absolute) ? filemtime($absolute) : time();
-        $separator = strpos($trimmed, '?') !== false ? '&' : '?';
-        return $trimmed . $separator . 'v=' . $version;
     }
 }
 
@@ -386,6 +368,108 @@ if (!function_exists('require_super_admin')) {
     }
 }
 
+if (!function_exists('load_payment_methods')) {
+    function load_payment_methods(PDO $pdo, array $cfg): array {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $cache = [];
+        try {
+            $rows = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                $settings = [];
+                if (!empty($row['settings'])) {
+                    $decoded = json_decode($row['settings'], true);
+                    if (is_array($decoded)) {
+                        $settings = $decoded;
+                    }
+                }
+                if (!isset($settings['type'])) {
+                    $settings['type'] = $row['code'];
+                }
+                if (!isset($settings['account_label'])) {
+                    $settings['account_label'] = '';
+                }
+                if (!isset($settings['account_value'])) {
+                    $settings['account_value'] = '';
+                }
+                $cache[] = [
+                    'id' => (int)$row['id'],
+                    'code' => (string)$row['code'],
+                    'name' => (string)$row['name'],
+                    'description' => (string)($row['description'] ?? ''),
+                    'instructions' => (string)($row['instructions'] ?? ''),
+                    'settings' => $settings,
+                    'icon_path' => $row['icon_path'] ?? null,
+                    'require_receipt' => (int)($row['require_receipt'] ?? 0),
+                ];
+            }
+        } catch (Throwable $e) {
+            $cache = [];
+        }
+
+        $cacheCodes = [];
+        foreach ($cache as $m) {
+            $cacheCodes[$m['code']] = true;
+        }
+        $paymentsCfg = $cfg['payments'] ?? [];
+        if (!isset($cacheCodes['whatsapp']) && !empty($paymentsCfg['whatsapp']['enabled'])) {
+            $cache[] = [
+                'code' => 'whatsapp',
+                'name' => 'WhatsApp',
+                'description' => '',
+                'instructions' => $paymentsCfg['whatsapp']['instructions'] ?? 'Converse com nossa equipe pelo WhatsApp para concluir: {whatsapp_link}.',
+                'settings' => [
+                    'type' => 'whatsapp',
+                    'account_label' => 'WhatsApp',
+                    'account_value' => $paymentsCfg['whatsapp']['number'] ?? '',
+                    'number' => $paymentsCfg['whatsapp']['number'] ?? '',
+                    'message' => $paymentsCfg['whatsapp']['message'] ?? 'Olá! Gostaria de finalizar meu pedido.',
+                    'link' => $paymentsCfg['whatsapp']['link'] ?? '',
+                ],
+                'icon_path' => null,
+                'require_receipt' => 0,
+            ];
+        }
+
+        if (!$cache) {
+            if (!empty($paymentsCfg['pix']['enabled'])) {
+                $cache[] = [
+                    'code' => 'pix',
+                    'name' => 'Pix',
+                    'instructions' => "Use o Pix para pagar seu pedido. Valor: {valor_pedido}.\nChave: {pix_key}",
+                    'settings' => [
+                        'type' => 'pix',
+                        'account_label' => 'Chave Pix',
+                        'account_value' => $paymentsCfg['pix']['pix_key'] ?? '',
+                        'pix_key' => $paymentsCfg['pix']['pix_key'] ?? '',
+                        'merchant_name' => $paymentsCfg['pix']['merchant_name'] ?? '',
+                        'merchant_city' => $paymentsCfg['pix']['merchant_city'] ?? '',
+                    ],
+                    'require_receipt' => 0,
+                ];
+            }
+            if (!empty($paymentsCfg['zelle']['enabled'])) {
+                $cache[] = [
+                    'code' => 'zelle',
+                    'name' => 'Zelle',
+                    'instructions' => "Envie {valor_pedido} via Zelle para {account_value}.",
+                    'settings' => [
+                        'type' => 'zelle',
+                        'account_label' => 'Zelle',
+                        'account_value' => $paymentsCfg['zelle']['recipient_email'] ?? '',
+                    ],
+                    'require_receipt' => 0,
+                ];
+            }
+        }
+
+        return $cache;
+    }
+}
+
 if (!function_exists('categories_supports_icon_column')) {
     function categories_supports_icon_column(PDO $pdo): bool {
         static $supported = null;
@@ -728,6 +812,81 @@ if (!function_exists('get_logo_path')) {
     }
 }
 
+if (!function_exists('cost_management_enabled')) {
+    function cost_management_enabled(): bool {
+        return setting_get('cost_management_enabled', '0') === '1';
+    }
+}
+
+if (!function_exists('product_profit_value')) {
+    function product_profit_value(float $price, ?float $costPrice, ?float $profitOverride): float {
+        if ($profitOverride !== null) {
+            return $profitOverride;
+        }
+        if ($costPrice !== null) {
+            return $price - $costPrice;
+        }
+        return 0.0;
+    }
+}
+
+if (!function_exists('store_category_font_options')) {
+    function store_category_font_options(): array {
+        return [
+            'default' => [
+                'label' => 'Padrão (Inter)',
+                'stack' => '',
+                'requires' => [],
+            ],
+            'playfair' => [
+                'label' => 'Playfair Display (serif elegante)',
+                'stack' => "'Playfair Display', 'Georgia', serif",
+                'requires' => ['playfair'],
+            ],
+            'pacifico' => [
+                'label' => 'Pacifico (manuscrita)',
+                'stack' => "'Pacifico', cursive",
+                'requires' => ['pacifico'],
+            ],
+            'inter' => [
+                'label' => 'Inter (sans moderna)',
+                'stack' => "'Inter', 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'requires' => ['inter'],
+            ],
+            'serif' => [
+                'label' => 'Serif clássica',
+                'stack' => "'Cormorant Garamond', 'Times New Roman', serif",
+                'requires' => ['cormorant'],
+            ],
+        ];
+    }
+}
+
+if (!function_exists('store_category_font_stack')) {
+    function store_category_font_stack(string $choice, string $custom = ''): array {
+        $choice = trim(strtolower($choice));
+        $options = store_category_font_options();
+
+        if ($choice === 'custom') {
+            $stack = trim($custom);
+            if ($stack === '') {
+                return ['stack' => '', 'requires' => []];
+            }
+            $stack = preg_replace('/[^a-zA-Z0-9,\s"\'\-&\/\+\.\(\)]/', '', $stack);
+            return ['stack' => $stack, 'requires' => []];
+        }
+
+        if (!isset($options[$choice])) {
+            $choice = 'default';
+        }
+        $entry = $options[$choice];
+        return [
+            'stack' => $entry['stack'],
+            'requires' => $entry['requires'] ?? [],
+        ];
+    }
+}
+
 if (!function_exists('save_pwa_icon_upload')) {
     function save_pwa_icon_upload(array $file) {
         $validation = validate_file_upload($file, ['image/png'], 2 * 1024 * 1024);
@@ -856,6 +1015,8 @@ if (!function_exists('theme_food_default_config')) {
             ],
             'products_heading' => 'Nossos Produtos',
             'products_subheading' => 'Filtre por categoria e monte sua cesta saudável.',
+            'products_group_by_category' => false,
+            'products_uncategorized_label' => 'Outros sabores',
             'history_heading' => 'Nossa História',
             'history_subheading' => 'Da fazenda para a sua mesa, mantendo viva a essência do Brasil.',
             'history_description' => 'Trabalhamos com pequenos produtores e famílias artesãs que preservam técnicas tradicionais e ingredientes naturais.',
@@ -886,31 +1047,49 @@ if (!function_exists('theme_food_default_config')) {
                     'label' => 'Produtos Artesanais',
                     'value' => '62+',
                     'color' => '#F59E0B',
+                    'enabled' => true,
                 ],
                 [
                     'label' => 'Ingredientes Naturais',
                     'value' => '100%',
                     'color' => '#16A34A',
+                    'enabled' => true,
                 ],
                 [
                     'label' => 'Estados Atendidos',
                     'value' => '50+',
                     'color' => '#2563EB',
+                    'enabled' => true,
                 ],
                 [
                     'label' => 'Anos de Tradição',
                     'value' => '15+',
                     'color' => '#9333EA',
+                    'enabled' => true,
                 ],
                 [
                     'label' => 'Parcerias com Fazendas',
                     'value' => '28+',
                     'color' => '#F97316',
+                    'enabled' => true,
                 ],
                 [
                     'label' => 'Clientes Felizes',
                     'value' => '5k+',
                     'color' => '#0EA5E9',
+                    'enabled' => true,
+                ],
+                [
+                    'label' => 'Comunidades Atendidas',
+                    'value' => '80+',
+                    'color' => '#EC4899',
+                    'enabled' => true,
+                ],
+                [
+                    'label' => 'Pedidos Semanais',
+                    'value' => '900+',
+                    'color' => '#14B8A6',
+                    'enabled' => true,
                 ],
             ],
             'history_image' => 'https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=1200&q=80',
@@ -954,12 +1133,26 @@ if (!function_exists('theme_food_default_config')) {
 if (!function_exists('theme_food_config')) {
     function theme_food_config(): array {
         $defaults = theme_food_default_config();
-        $raw = setting_get('theme_food_config', '');
+        $raw = setting_get('theme_food_config', null);
         $data = [];
-        if (is_string($raw) && $raw !== '') {
+        if (is_array($raw)) {
+            $data = $raw;
+        } elseif (is_string($raw) && $raw !== '') {
             $decoded = json_decode($raw, true);
             if (is_array($decoded)) {
                 $data = $decoded;
+            }
+        }
+        if (!$data) {
+            $fallbackFile = __DIR__ . '/../storage/theme_food_config.json';
+            if (is_file($fallbackFile)) {
+                $fileContents = @file_get_contents($fallbackFile);
+                if ($fileContents !== false) {
+                    $decoded = json_decode($fileContents, true);
+                    if (is_array($decoded)) {
+                        $data = $decoded;
+                    }
+                }
             }
         }
         $config = array_replace_recursive($defaults, $data);
@@ -1002,16 +1195,20 @@ if (!function_exists('theme_food_config')) {
                 if (!preg_match('/^#[0-9A-F]{3}(?:[0-9A-F]{3})?$/', $color)) {
                     $color = $base['color'] ?? '#16A34A';
                 }
+                $enabledValue = $incoming['enabled'] ?? ($base['enabled'] ?? true);
                 $normalized[] = [
                     'label' => $label,
                     'value' => $value,
                     'color' => $color,
+                    'enabled' => (bool)$enabledValue,
                 ];
             }
             return $normalized;
         };
 
         $config['history_stats'] = $normalizeStats($defaults['history_stats'], is_array($config['history_stats'] ?? null) ? $config['history_stats'] : []);
+        $config['products_group_by_category'] = !empty($config['products_group_by_category']);
+        $config['products_uncategorized_label'] = trim((string)($config['products_uncategorized_label'] ?? 'Outros sabores'));
 
         return $config;
     }
@@ -1482,6 +1679,10 @@ if (!function_exists('pwa_icon_url')) {
         $rel = $icons[$size]['relative'];
         $abs = $icons[$size]['absolute'];
         $url = function_exists('app_public_path') ? app_public_path($rel) : '';
+        if (function_exists('cache_busted_url')) {
+            $versioned = cache_busted_url($rel);
+            return '/' . ltrim($versioned, '/');
+        }
         if ($url === '') {
             $url = '/' . ltrim($rel, '/');
         }
@@ -2044,6 +2245,135 @@ if (!function_exists('email_render_template')) {
     }
 }
 
+if (!function_exists('order_normalize_items')) {
+    function order_normalize_items(array $items, ?string $fallbackCurrency = null): array {
+        $cfg = cfg();
+        $defaultCurrency = $fallbackCurrency !== null
+            ? strtoupper($fallbackCurrency)
+            : strtoupper($cfg['store']['currency'] ?? 'USD');
+        $normalized = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $name = trim((string)($item['name'] ?? ($item['product_name'] ?? '')));
+            if ($name === '') {
+                continue;
+            }
+            $productId = isset($item['id']) ? (int)$item['id'] : (int)($item['product_id'] ?? 0);
+            $sku = trim((string)($item['sku'] ?? ''));
+            $qtyRaw = $item['qty'] ?? ($item['quantity'] ?? 0);
+            $qty = max(1, (int)$qtyRaw);
+            $price = (float)($item['price'] ?? 0);
+            $currency = strtoupper($item['currency'] ?? $defaultCurrency);
+            $shipping = isset($item['shipping_cost']) ? (float)$item['shipping_cost'] : 0.0;
+            $costPrice = isset($item['cost_price']) ? (float)$item['cost_price'] : (isset($item['cost']) ? (float)$item['cost'] : null);
+            if ($costPrice !== null && $costPrice < 0) {
+                $costPrice = null;
+            }
+            $profitValue = null;
+            if (isset($item['profit_value'])) {
+                $profitValue = (float)$item['profit_value'];
+            } elseif (isset($item['profit_amount'])) {
+                $profitValue = (float)$item['profit_amount'];
+            }
+            if ($profitValue === null && $costPrice !== null) {
+                $profitValue = $price - $costPrice;
+            }
+            $normalized[] = [
+                'id' => $productId ?: null,
+                'product_id' => $productId ?: null,
+                'name' => $name,
+                'sku' => $sku,
+                'qty' => $qty,
+                'price' => $price,
+                'currency' => $currency,
+                'shipping_cost' => $shipping,
+                'cost_price' => $costPrice,
+                'profit_value' => $profitValue,
+            ];
+        }
+        return $normalized;
+    }
+}
+
+if (!function_exists('order_fetch_items_from_table')) {
+    function order_fetch_items_from_table(PDO $pdo, int $orderId): array {
+        if ($orderId <= 0) {
+            return [];
+        }
+        try {
+            $stmt = $pdo->prepare('SELECT product_id, name, sku, price, quantity, cost_price, profit_amount FROM order_items WHERE order_id = ? ORDER BY id ASC');
+            $stmt->execute([$orderId]);
+            $items = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $items[] = [
+                    'product_id' => isset($row['product_id']) ? (int)$row['product_id'] : null,
+                    'name' => $row['name'],
+                    'sku' => $row['sku'],
+                    'price' => (float)$row['price'],
+                    'qty' => max(1, (int)$row['quantity']),
+                    'cost_price' => isset($row['cost_price']) ? (float)$row['cost_price'] : null,
+                    'profit_value' => isset($row['profit_amount']) ? (float)$row['profit_amount'] : null,
+                ];
+            }
+            return $items;
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+}
+
+if (!function_exists('order_get_items')) {
+    function order_get_items(PDO $pdo, array $orderRow): array {
+        $raw = $orderRow['items_json'] ?? '[]';
+        if (is_array($raw)) {
+            $items = $raw;
+        } else {
+            $items = json_decode((string)$raw, true);
+        }
+        if (!is_array($items) || !$items) {
+            $items = order_fetch_items_from_table($pdo, (int)($orderRow['id'] ?? 0));
+        }
+        $currency = strtoupper($orderRow['currency'] ?? (cfg()['store']['currency'] ?? 'USD'));
+        return order_normalize_items($items, $currency);
+    }
+}
+
+if (!function_exists('order_sync_items_table')) {
+    function order_sync_items_table(PDO $pdo, int $orderId, array $items): void {
+        if ($orderId <= 0) {
+            return;
+        }
+        $normalized = order_normalize_items($items, null);
+        try {
+            $del = $pdo->prepare('DELETE FROM order_items WHERE order_id = ?');
+            $del->execute([$orderId]);
+        } catch (Throwable $e) {
+            return;
+        }
+        if (!$normalized) {
+            return;
+        }
+        try {
+            $ins = $pdo->prepare('INSERT INTO order_items (order_id, product_id, name, sku, price, quantity, cost_price, profit_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            foreach ($normalized as $item) {
+                $ins->execute([
+                    $orderId,
+                    $item['product_id'],
+                    $item['name'],
+                    $item['sku'],
+                    $item['price'],
+                    $item['qty'],
+                    $item['cost_price'],
+                    $item['profit_value'],
+                ]);
+            }
+        } catch (Throwable $e) {
+        }
+    }
+}
+
 if (!function_exists('email_build_order_rows')) {
     function email_build_order_rows(array $items, string $defaultCurrency): string {
         if (!$items) {
@@ -2093,10 +2423,7 @@ if (!function_exists('send_order_confirmation')) {
                 return false;
             }
 
-            $items = json_decode($order['items_json'] ?? '[]', true);
-            if (!is_array($items)) {
-                $items = [];
-            }
+            $items = order_get_items($pdo, $order);
 
             $cfg = cfg();
             $storeInfo = store_info();
@@ -2195,7 +2522,8 @@ if (!function_exists('send_order_confirmation')) {
                 $deliveryDetails = '—';
             }
 
-            $supportEmail = $storeInfo['email'] ?? ($cfg['store']['support_email'] ?? '');
+            $supportEmail = setting_get('email_from_address', $storeInfo['email'] ?? ($cfg['store']['support_email'] ?? ''));
+            $emailFromName = setting_get('email_from_name', $storeName);
             $additionalContent = 'Dúvidas? Responda este e-mail';
             if ($supportEmail) {
                 $safeSupport = sanitize_html($supportEmail);
@@ -2298,7 +2626,13 @@ if (!function_exists('send_order_confirmation')) {
             $subject = email_render_template($subjectTpl, $subjectVars);
             $body    = email_render_template($bodyTpl, $vars);
 
-            return send_email($customer_email, $subject, $body);
+            $mailOptions = [
+                'subject' => $subject,
+                'body' => $body,
+                'from_name' => $emailFromName,
+                'from_email' => $supportEmail ?: null,
+            ];
+            return send_email($customer_email, $subject, $body, $mailOptions);
         } catch (Throwable $e) {
             error_log('Failed to send order confirmation: ' . $e->getMessage());
             return false;
@@ -2333,10 +2667,7 @@ if (!function_exists('send_order_admin_alert')) {
                 return false;
             }
 
-            $items = json_decode($order['items_json'] ?? '[]', true);
-            if (!is_array($items)) {
-                $items = [];
-            }
+            $items = order_get_items($pdo, $order);
 
             $cfg = cfg();
             $storeInfo = store_info();
@@ -2437,7 +2768,8 @@ if (!function_exists('send_order_admin_alert')) {
                 $deliveryDetails = '—';
             }
 
-            $supportEmail = $storeInfo['email'] ?? ($cfg['store']['support_email'] ?? null);
+            $supportEmail = setting_get('email_from_address', $storeInfo['email'] ?? ($cfg['store']['support_email'] ?? null));
+            $emailFromName = setting_get('email_from_name', $storeName);
             if (!$supportEmail && defined('ADMIN_EMAIL')) {
                 $supportEmail = ADMIN_EMAIL;
             }
@@ -2555,8 +2887,12 @@ if (!function_exists('send_order_admin_alert')) {
             }
 
             $success = true;
+            $mailOptions = [
+                'from_name' => $emailFromName,
+                'from_email' => $supportEmail ?: null,
+            ];
             foreach ($recipients as $recipient) {
-                if (!send_email($recipient, $subject, $body)) {
+                if (!send_email($recipient, $subject, $body, $mailOptions)) {
                     $success = false;
                 }
             }
@@ -2576,6 +2912,7 @@ if (!function_exists('checkout_default_countries')) {
     function checkout_default_countries(): array {
         return [
             ['code' => 'US', 'name' => 'Estados Unidos'],
+            ['code' => 'BR', 'name' => 'Brasil'],
         ];
     }
 }
@@ -2634,6 +2971,33 @@ if (!function_exists('checkout_default_states')) {
             ['country' => 'US', 'code' => 'WV', 'name' => 'Virgínia Ocidental'],
             ['country' => 'US', 'code' => 'WI', 'name' => 'Wisconsin'],
             ['country' => 'US', 'code' => 'WY', 'name' => 'Wyoming'],
+            ['country' => 'BR', 'code' => 'AC', 'name' => 'Acre'],
+            ['country' => 'BR', 'code' => 'AL', 'name' => 'Alagoas'],
+            ['country' => 'BR', 'code' => 'AP', 'name' => 'Amapá'],
+            ['country' => 'BR', 'code' => 'AM', 'name' => 'Amazonas'],
+            ['country' => 'BR', 'code' => 'BA', 'name' => 'Bahia'],
+            ['country' => 'BR', 'code' => 'CE', 'name' => 'Ceará'],
+            ['country' => 'BR', 'code' => 'DF', 'name' => 'Distrito Federal'],
+            ['country' => 'BR', 'code' => 'ES', 'name' => 'Espírito Santo'],
+            ['country' => 'BR', 'code' => 'GO', 'name' => 'Goiás'],
+            ['country' => 'BR', 'code' => 'MA', 'name' => 'Maranhão'],
+            ['country' => 'BR', 'code' => 'MT', 'name' => 'Mato Grosso'],
+            ['country' => 'BR', 'code' => 'MS', 'name' => 'Mato Grosso do Sul'],
+            ['country' => 'BR', 'code' => 'MG', 'name' => 'Minas Gerais'],
+            ['country' => 'BR', 'code' => 'PA', 'name' => 'Pará'],
+            ['country' => 'BR', 'code' => 'PB', 'name' => 'Paraíba'],
+            ['country' => 'BR', 'code' => 'PR', 'name' => 'Paraná'],
+            ['country' => 'BR', 'code' => 'PE', 'name' => 'Pernambuco'],
+            ['country' => 'BR', 'code' => 'PI', 'name' => 'Piauí'],
+            ['country' => 'BR', 'code' => 'RJ', 'name' => 'Rio de Janeiro'],
+            ['country' => 'BR', 'code' => 'RN', 'name' => 'Rio Grande do Norte'],
+            ['country' => 'BR', 'code' => 'RS', 'name' => 'Rio Grande do Sul'],
+            ['country' => 'BR', 'code' => 'RO', 'name' => 'Rondônia'],
+            ['country' => 'BR', 'code' => 'RR', 'name' => 'Roraima'],
+            ['country' => 'BR', 'code' => 'SC', 'name' => 'Santa Catarina'],
+            ['country' => 'BR', 'code' => 'SP', 'name' => 'São Paulo'],
+            ['country' => 'BR', 'code' => 'SE', 'name' => 'Sergipe'],
+            ['country' => 'BR', 'code' => 'TO', 'name' => 'Tocantins'],
         ];
     }
 }
@@ -2786,6 +3150,102 @@ if (!function_exists('checkout_get_states_by_country')) {
     }
 }
 
+if (!function_exists('checkout_default_cities')) {
+    function checkout_default_cities(): array {
+        return [
+            ['country' => 'BR', 'state' => 'AC', 'name' => 'Rio Branco'],
+            ['country' => 'BR', 'state' => 'AL', 'name' => 'Maceió'],
+            ['country' => 'BR', 'state' => 'AP', 'name' => 'Macapá'],
+            ['country' => 'BR', 'state' => 'AM', 'name' => 'Manaus'],
+            ['country' => 'BR', 'state' => 'BA', 'name' => 'Salvador'],
+            ['country' => 'BR', 'state' => 'CE', 'name' => 'Fortaleza'],
+            ['country' => 'BR', 'state' => 'DF', 'name' => 'Brasília'],
+            ['country' => 'BR', 'state' => 'ES', 'name' => 'Vitória'],
+            ['country' => 'BR', 'state' => 'GO', 'name' => 'Goiânia'],
+            ['country' => 'BR', 'state' => 'MA', 'name' => 'São Luís'],
+            ['country' => 'BR', 'state' => 'MT', 'name' => 'Cuiabá'],
+            ['country' => 'BR', 'state' => 'MS', 'name' => 'Campo Grande'],
+            ['country' => 'BR', 'state' => 'MG', 'name' => 'Belo Horizonte'],
+            ['country' => 'BR', 'state' => 'PA', 'name' => 'Belém'],
+            ['country' => 'BR', 'state' => 'PB', 'name' => 'João Pessoa'],
+            ['country' => 'BR', 'state' => 'PR', 'name' => 'Curitiba'],
+            ['country' => 'BR', 'state' => 'PE', 'name' => 'Recife'],
+            ['country' => 'BR', 'state' => 'PI', 'name' => 'Teresina'],
+            ['country' => 'BR', 'state' => 'RJ', 'name' => 'Rio de Janeiro'],
+            ['country' => 'BR', 'state' => 'RN', 'name' => 'Natal'],
+            ['country' => 'BR', 'state' => 'RS', 'name' => 'Porto Alegre'],
+            ['country' => 'BR', 'state' => 'RO', 'name' => 'Porto Velho'],
+            ['country' => 'BR', 'state' => 'RR', 'name' => 'Boa Vista'],
+            ['country' => 'BR', 'state' => 'SC', 'name' => 'Florianópolis'],
+            ['country' => 'BR', 'state' => 'SP', 'name' => 'São Paulo'],
+            ['country' => 'BR', 'state' => 'SE', 'name' => 'Aracaju'],
+            ['country' => 'BR', 'state' => 'TO', 'name' => 'Palmas'],
+        ];
+    }
+}
+
+if (!function_exists('checkout_get_cities')) {
+    function checkout_get_cities(): array {
+        $raw = setting_get('checkout_cities', null);
+        $entries = [];
+        if (is_array($raw)) {
+            $entries = $raw;
+        } elseif (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $entries = $decoded;
+            } else {
+                foreach (preg_split('/\r?\n/', trim($raw)) as $line) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+                    $parts = array_map('trim', explode('|', $line));
+                    if (count($parts) >= 3) {
+                        $entries[] = [
+                            'country' => $parts[0],
+                            'state'   => $parts[1],
+                            'name'    => $parts[2],
+                        ];
+                    }
+                }
+            }
+        }
+        $result = [];
+        foreach ($entries as $entry) {
+            if (is_string($entry)) {
+                $parts = array_map('trim', explode('|', $entry));
+                if (count($parts) < 3) {
+                    continue;
+                }
+                [$country, $state, $name] = $parts;
+            } else {
+                $country = strtoupper(trim((string)($entry['country'] ?? '')));
+                $state   = strtoupper(trim((string)($entry['state'] ?? '')));
+                $name    = trim((string)($entry['name'] ?? ''));
+            }
+            if ($country === '' || $state === '' || $name === '') {
+                continue;
+            }
+            $key = strtoupper($country).'::'.strtoupper($state);
+            $result[$key][] = $name;
+        }
+        if (!$result) {
+            foreach (checkout_default_cities() as $city) {
+                $key = strtoupper($city['country']).'::'.strtoupper($city['state']);
+                $result[$key][] = $city['name'];
+            }
+        }
+        return $result;
+    }
+}
+
+if (!function_exists('checkout_group_cities')) {
+    function checkout_group_cities(): array {
+        return checkout_get_cities();
+    }
+}
+
 if (!function_exists('checkout_get_delivery_methods')) {
     function checkout_get_delivery_methods(): array {
         $raw = setting_get('checkout_delivery_methods', null);
@@ -2879,6 +3339,80 @@ if (!function_exists('store_info')) {
             'addr'   => setting_get('store_address',$cfg['store']['address']?? 'Endereço não configurado'),
             'logo'   => get_logo_path(),
             'currency' => $cfg['store']['currency'] ?? 'BRL',
+        ];
+    }
+}
+if (!function_exists('store_hours_config')) {
+    function store_hours_config(): array {
+        $defaults = [
+            'enabled'    => false,
+            'label'      => 'Seg a Sex: 09h às 18h (BRT)',
+            'open_time'  => '09:00',
+            'close_time' => '18:00',
+            'timezone'   => 'America/Sao_Paulo',
+        ];
+        return [
+            'enabled'    => (bool)setting_get('store_hours_enabled', $defaults['enabled'] ? '1' : '0'),
+            'label'      => setting_get('store_hours_label', $defaults['label']),
+            'open_time'  => setting_get('store_hours_open_time', $defaults['open_time']),
+            'close_time' => setting_get('store_hours_close_time', $defaults['close_time']),
+            'timezone'   => setting_get('store_hours_timezone', $defaults['timezone']),
+        ];
+    }
+}
+if (!function_exists('store_hours_status')) {
+    function store_hours_status(): array {
+        $config = store_hours_config();
+        if (empty($config['enabled'])) {
+            return [
+                'enabled' => false,
+                'label' => '',
+                'is_open' => false,
+                'status_text' => '',
+                'timezone' => $config['timezone'] ?? 'UTC',
+                'open_time' => $config['open_time'] ?? '00:00',
+                'close_time' => $config['close_time'] ?? '00:00',
+                'next_change' => null,
+            ];
+        }
+        $timezone = $config['timezone'] ?: 'UTC';
+        try {
+            $tz = new DateTimeZone($timezone);
+        } catch (Throwable $e) {
+            $tz = new DateTimeZone('UTC');
+            $timezone = 'UTC';
+        }
+        $now = new DateTimeImmutable('now', $tz);
+
+        $openTime = preg_match('/^\d{2}:\d{2}$/', $config['open_time'] ?? '') ? $config['open_time'] : '00:00';
+        $closeTime = preg_match('/^\d{2}:\d{2}$/', $config['close_time'] ?? '') ? $config['close_time'] : '23:59';
+
+        [$openHour, $openMinute] = array_map('intval', explode(':', $openTime));
+        [$closeHour, $closeMinute] = array_map('intval', explode(':', $closeTime));
+
+        $openDate = $now->setTime($openHour, $openMinute, 0);
+        $closeDate = $now->setTime($closeHour, $closeMinute, 0);
+
+        if ($closeDate <= $openDate) {
+            // período que cruza a meia-noite
+            if ($now < $openDate) {
+                $openDate = $openDate->modify('-1 day');
+            }
+            $closeDate = $closeDate->modify('+1 day');
+        }
+
+        $isOpen = ($now >= $openDate && $now < $closeDate);
+        $statusText = $isOpen ? 'Aberto agora' : 'Fechado agora';
+
+        return [
+            'enabled' => true,
+            'label' => trim((string)$config['label']) !== '' ? (string)$config['label'] : 'Seg a Sex: 09h às 18h (BRT)',
+            'is_open' => $isOpen,
+            'status_text' => $statusText,
+            'timezone' => $timezone,
+            'open_time' => $openTime,
+            'close_time' => $closeTime,
+            'next_change' => $isOpen ? $closeDate : $openDate,
         ];
     }
 }

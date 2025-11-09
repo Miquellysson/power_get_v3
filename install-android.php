@@ -23,6 +23,7 @@ function store_logo_path() {
 $logo = store_logo_path() ?: 'assets/logo.png';
 $logoUrl = function_exists('cache_busted_url') ? cache_busted_url($logo) : $logo;
 $swRegisterUrl = function_exists('service_worker_url') ? service_worker_url() : '/sw.js';
+$cacheToken = function_exists('cache_bust_current_token') ? cache_bust_current_token() : (string)time();
 $manifestUrl = function_exists('asset_url') ? '/' . ltrim(asset_url('manifest.webmanifest'), '/') : '/manifest.webmanifest';
 $icon192 = function_exists('asset_url') ? '/' . ltrim(asset_url('assets/icons/farma-192.png'), '/') : '/assets/icons/farma-192.png';
 ?>
@@ -31,10 +32,17 @@ $icon192 = function_exists('asset_url') ? '/' . ltrim(asset_url('assets/icons/fa
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, max-age=0, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Instalar app – Android | <?=htmlspecialchars($storeName)?></title>
   <link rel="manifest" href="<?=htmlspecialchars($manifestUrl)?>">
   <meta name="theme-color" content="#B91C1C">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.__CACHE_BUSTER__ = <?=json_encode($cacheToken)?>;
+    window.__SW_URL__ = <?=json_encode($swRegisterUrl)?>;
+  </script>
   <script>
     tailwind.config = { theme: { extend: { colors: {
       brand: { DEFAULT:"#DC2626", 700:"#B91C1C" }, amber: { 400:"#F59E0B" }

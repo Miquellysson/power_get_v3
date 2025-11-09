@@ -53,6 +53,8 @@ try {
     price DECIMAL(10,2) NOT NULL,
     price_compare DECIMAL(10,2) NULL,
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    cost_price DECIMAL(10,2) NULL,
+    profit_amount DECIMAL(10,2) NULL,
     shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 7.00,
     stock INT NOT NULL DEFAULT 100,
     image_path VARCHAR(255) NULL,
@@ -88,6 +90,8 @@ try {
     $hasCreditCol = false;
     $hasDebitCol = false;
     $hasAfterpayCol = false;
+    $hasCostCol = false;
+    $hasProfitCol = false;
     if ($cols) {
       while ($col = $cols->fetch(PDO::FETCH_ASSOC)) {
         $field = $col['Field'] ?? '';
@@ -96,6 +100,8 @@ try {
         if ($field === 'square_credit_link') $hasCreditCol = true;
         if ($field === 'square_debit_link') $hasDebitCol = true;
         if ($field === 'square_afterpay_link') $hasAfterpayCol = true;
+        if ($field === 'cost_price') $hasCostCol = true;
+        if ($field === 'profit_amount') $hasProfitCol = true;
       }
     }
     if (!$hasSlug) {
@@ -112,6 +118,12 @@ try {
     }
     if (!$hasAfterpayCol) {
       $pdo->exec("ALTER TABLE products ADD COLUMN square_afterpay_link VARCHAR(255) NULL AFTER square_debit_link");
+    }
+    if (!$hasCostCol) {
+      $pdo->exec("ALTER TABLE products ADD COLUMN cost_price DECIMAL(10,2) NULL AFTER currency");
+    }
+    if (!$hasProfitCol) {
+      $pdo->exec("ALTER TABLE products ADD COLUMN profit_amount DECIMAL(10,2) NULL AFTER cost_price");
     }
     $upd = $pdo->prepare("UPDATE products SET currency = ? WHERE currency IS NULL OR currency = ''");
     $upd->execute([$defaultCurrency]);
@@ -218,6 +230,8 @@ try {
     subtotal DECIMAL(10,2) NOT NULL,
     shipping_cost DECIMAL(10,2) DEFAULT 0.00,
     total DECIMAL(10,2) NOT NULL,
+    cost_total DECIMAL(10,2) DEFAULT 0.00,
+    profit_total DECIMAL(10,2) DEFAULT 0.00,
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
     payment_method VARCHAR(40) NOT NULL,
     delivery_method_code VARCHAR(60) NULL,
@@ -238,12 +252,15 @@ try {
   try {
     $cols = $pdo->query("SHOW COLUMNS FROM orders");
     $hasDeliveryCode = $hasDeliveryLabel = $hasDeliveryDetails = false;
+    $hasCostTotal = $hasProfitTotal = false;
     if ($cols) {
       while ($col = $cols->fetch(PDO::FETCH_ASSOC)) {
         $field = $col['Field'] ?? '';
         if ($field === 'delivery_method_code') $hasDeliveryCode = true;
         if ($field === 'delivery_method_label') $hasDeliveryLabel = true;
         if ($field === 'delivery_method_details') $hasDeliveryDetails = true;
+        if ($field === 'cost_total') $hasCostTotal = true;
+        if ($field === 'profit_total') $hasProfitTotal = true;
       }
     }
     if (!$hasDeliveryCode) {
@@ -254,6 +271,12 @@ try {
     }
     if (!$hasDeliveryDetails) {
       $pdo->exec("ALTER TABLE orders ADD COLUMN delivery_method_details VARCHAR(255) NULL AFTER delivery_method_label");
+    }
+    if (!$hasCostTotal) {
+      $pdo->exec("ALTER TABLE orders ADD COLUMN cost_total DECIMAL(10,2) DEFAULT 0.00 AFTER total");
+    }
+    if (!$hasProfitTotal) {
+      $pdo->exec("ALTER TABLE orders ADD COLUMN profit_total DECIMAL(10,2) DEFAULT 0.00 AFTER cost_total");
     }
   } catch (Throwable $e) {}
 
@@ -279,10 +302,30 @@ try {
     sku VARCHAR(100) NULL,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     quantity INT NOT NULL DEFAULT 1,
+    cost_price DECIMAL(10,2) NULL,
+    profit_amount DECIMAL(10,2) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     INDEX idx_order_id (order_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+  try {
+    $itemCols = $pdo->query("SHOW COLUMNS FROM order_items");
+    $hasItemCost = $hasItemProfit = false;
+    if ($itemCols) {
+      while ($col = $itemCols->fetch(PDO::FETCH_ASSOC)) {
+        $field = $col['Field'] ?? '';
+        if ($field === 'cost_price') $hasItemCost = true;
+        if ($field === 'profit_amount') $hasItemProfit = true;
+      }
+    }
+    if (!$hasItemCost) {
+      $pdo->exec("ALTER TABLE order_items ADD COLUMN cost_price DECIMAL(10,2) NULL AFTER quantity");
+    }
+    if (!$hasItemProfit) {
+      $pdo->exec("ALTER TABLE order_items ADD COLUMN profit_amount DECIMAL(10,2) NULL AFTER cost_price");
+    }
+  } catch (Throwable $e) {}
 
   // ===== NOTIFICATIONS =====
   // Em MariaDB, JSON costuma ser alias de LONGTEXT. Se sua versão não suportar JSON, troque para LONGTEXT.

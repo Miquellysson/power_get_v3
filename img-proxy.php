@@ -61,7 +61,9 @@ if (is_file($cacheFile) && (time() - filemtime($cacheFile) < $CACHE_TTL)) {
     if (isset($meta['last_modified'])) header('Last-Modified: '.$meta['last_modified']);
   }
   header('Content-Type: '.$ctype);
-  header('Cache-Control: public, max-age=300, s-maxage=300');
+  header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+  header('Pragma: no-cache');
+  header('Expires: Wed, 11 Jan 1984 05:00:00 GMT');
   readfile($cacheFile);
   exit;
 }
@@ -131,7 +133,9 @@ $lastModified = gmdate('D, d M Y H:i:s').' GMT';
 
 // Responde
 header('Content-Type: '.$ctype);
-header('Cache-Control: public, max-age=300, s-maxage=300');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+header('Pragma: no-cache');
+header('Expires: Wed, 11 Jan 1984 05:00:00 GMT');
 header('ETag: "'.$etag.'"');
 header('Last-Modified: '.$lastModified);
 echo $body;

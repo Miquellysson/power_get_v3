@@ -13,8 +13,21 @@
   });
 
   // PWA register
+  const cacheToken = typeof window.__CACHE_BUSTER__ === 'string' && window.__CACHE_BUSTER__.length
+    ? window.__CACHE_BUSTER__
+    : '';
+  function withCacheKey(url) {
+    if (!cacheToken) return url;
+    if (/[?&](?:v|cb)=/i.test(url)) return url;
+    const glue = url.includes('?') ? '&' : '?';
+    return `${url}${glue}cb=${encodeURIComponent(cacheToken)}`;
+  }
+
   if('serviceWorker' in navigator){
-    const swUrl = window.__SW_URL__ || './sw.js';
+    const candidates = Array.isArray(window.__SW_URLS__) && window.__SW_URLS__.length
+      ? window.__SW_URLS__
+      : [window.__SW_URL__ || './sw.js'];
+    const swUrl = withCacheKey(candidates[0]);
     navigator.serviceWorker.register(swUrl).catch(()=>{});
   }
 

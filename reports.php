@@ -103,7 +103,9 @@ $summaryStmt = $pdo->prepare("
     SUM(total) AS gross_revenue,
     SUM(CASE WHEN status IN ('paid','shipped') THEN total ELSE 0 END) AS paid_revenue,
     SUM(CASE WHEN status = 'pending' THEN total ELSE 0 END) AS pending_value,
-    SUM(CASE WHEN status = 'canceled' THEN total ELSE 0 END) AS canceled_value
+    SUM(CASE WHEN status = 'canceled' THEN total ELSE 0 END) AS canceled_value,
+    SUM(cost_total) AS cost_total,
+    SUM(profit_total) AS profit_total
   FROM orders
   WHERE created_at BETWEEN ? AND ?
 ");
@@ -120,6 +122,10 @@ $pendingValue = (float)($summary['pending_value'] ?? 0);
 $canceledValue = (float)($summary['canceled_value'] ?? 0);
 $ticketMedio = $paidOrders > 0 ? $paidRevenue / $paidOrders : 0.0;
 $conversionRate = $totalOrders > 0 ? ($paidOrders / $totalOrders) * 100 : 0.0;
+$costFeatureEnabled = cost_management_enabled();
+$costSummary = $costFeatureEnabled ? (float)($summary['cost_total'] ?? 0) : 0.0;
+$profitSummary = $costFeatureEnabled ? (float)($summary['profit_total'] ?? 0) : 0.0;
+$marginSummary = ($paidRevenue > 0 && $costFeatureEnabled) ? ($profitSummary / $paidRevenue) * 100 : 0.0;
 
 $statusStmt = $pdo->prepare("
   SELECT status, COUNT(*) AS total_orders, SUM(total) AS total_amount
@@ -201,6 +207,11 @@ echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">
 echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Ticket médio (pagos)</span><span class="font-semibold">'.format_currency($ticketMedio, $storeCurrency).'</span></div>';
 echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Valor pendente</span><span class="font-semibold">'.format_currency($pendingValue, $storeCurrency).'</span></div>';
 echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Valor cancelado</span><span class="font-semibold">'.format_currency($canceledValue, $storeCurrency).'</span></div>';
+if ($costFeatureEnabled) {
+  echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Custos do período</span><span class="font-semibold">'.format_currency($costSummary, $storeCurrency).'</span></div>';
+  echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Lucro estimado</span><span class="font-semibold">'.format_currency($profitSummary, $storeCurrency).'</span></div>';
+  echo '    <div class="flex justify-between text-sm"><span class="text-gray-500">Margem</span><span class="font-semibold">'.number_format($marginSummary, 1, ',', '.').'%</span></div>';
+}
 echo '  </div></div>';
 echo '</div>';
 

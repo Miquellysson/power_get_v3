@@ -2,6 +2,15 @@
 (function () {
   const customIcon = window.__A2HS_ICON__ || window.__APP_ICON__ || null;
   const customAppName = window.__APP_NAME__ || 'Get Power Research';
+  const cacheToken = typeof window.__CACHE_BUSTER__ === 'string' && window.__CACHE_BUSTER__.length
+    ? window.__CACHE_BUSTER__
+    : '';
+  const addCacheKey = (url) => {
+    if (!cacheToken) return url;
+    if (/[?&](?:v|cb)=/i.test(url)) return url;
+    const glue = url.includes('?') ? '&' : '?';
+    return `${url}${glue}cb=${encodeURIComponent(cacheToken)}`;
+  };
   const swHints = [];
   if (Array.isArray(window.__SW_URLS__)) {
     swHints.push(...window.__SW_URLS__.map(String));
@@ -9,11 +18,11 @@
     swHints.push(String(window.__SW_URL__));
   }
   const defaultSwPaths = ['sw.js', '/sw.js'];
-  const uniqueSwPaths = Array.from(new Set(swHints.concat(defaultSwPaths)));
+  const uniqueSwPaths = Array.from(new Set(swHints.concat(defaultSwPaths).map(addCacheKey)));
 
   const CONFIG = {
     appName: customAppName,
-    icon192: customIcon || 'assets/icons/farma-192.png',      // relativo à pasta /farmafixed
+    icon192: addCacheKey(customIcon || 'assets/icons/farma-192.png'),      // relativo à pasta /farmafixed
     deferDaysAfterDismiss: 7,                    // dias sem mostrar após fechar
     swPaths: uniqueSwPaths      // tenta registrar local e explícito
   };
