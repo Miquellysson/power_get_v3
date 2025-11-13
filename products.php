@@ -930,7 +930,7 @@ if ($action==='import') {
     $line = 1;
     $selectSku = $pdo->prepare("SELECT * FROM products WHERE sku = ? LIMIT 1");
     $updateStmt = $pdo->prepare("UPDATE products SET name=?, sku=?, price=?, price_compare=?, cost_price=?, profit_amount=?, currency=?, shipping_cost=?, stock=?, category_id=?, description=?, active=?, featured=?, image_path=?, square_credit_link=?, square_debit_link=?, square_afterpay_link=?, square_payment_link=?, stripe_payment_link=? WHERE id=?");
-    $insertStmt = $pdo->prepare("INSERT INTO products(name,sku,price,price_compare,cost_price,profit_amount,currency,shipping_cost,stock,category_id,description,active,featured,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())");
+    $insertStmt = $pdo->prepare("INSERT INTO products(name,sku,price,price_compare,cost_price,profit_amount,currency,shipping_cost,stock,category_id,description,active,featured,image_path,square_credit_link,square_debit_link,square_afterpay_link,square_payment_link,stripe_payment_link,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())");
     $categoryIds = [];
     try {
       $categoryIds = $pdo->query("SELECT id FROM categories")->fetchAll(PDO::FETCH_COLUMN);

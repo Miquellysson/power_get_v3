@@ -471,7 +471,7 @@ function render_payment_instructions(string $template, array $placeholders): str
 }
 
 function app_header() {
-  global $d, $cfg;
+  global $d, $cfg, $categoryFontFamilyValue, $categoryFontRequires;
 
   $lang = $d['_lang'] ?? 'pt';
   $logo = store_logo_path();
