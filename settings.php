@@ -595,8 +595,11 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   $updates['refund_policy_content'] = $refundContent;
 
   if ($updates) {
-    if (!setting_set_multi($updates)) {
-      $errors[] = 'Não foi possível salvar todas as configurações. Tente novamente em instantes.';
+    foreach ($updates as $updateKey => $updateValue) {
+      if (!setting_set($updateKey, $updateValue)) {
+        $errors[] = 'Falha ao salvar a configuração "'.$updateKey.'". Tente novamente.';
+        break;
+      }
     }
   }
 
