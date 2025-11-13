@@ -57,6 +57,15 @@ function pm_safe_html($value, $allowed = '<br><strong><em><span>', $max = 8000) 
   return $value;
 }
 
+function settings_log_error(string $message): void {
+  $dir = __DIR__ . '/storage/logs';
+  if (!is_dir($dir)) {
+    @mkdir($dir, 0775, true);
+  }
+  $line = '[' . date('c') . '] ' . $message . PHP_EOL;
+  @file_put_contents($dir . '/admin-settings.log', $line, FILE_APPEND);
+}
+
 function pm_slug($text) {
   $text = strtolower($text);
   $text = preg_replace('/[^a-z0-9\-]+/i', '-', $text);
@@ -334,55 +343,69 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!csrf_check($_POST['csrf'] ?? '')) die('CSRF');
   require_admin_capability('manage_settings');
   $errors = [];
-  $updates = [];
+  $pdo = db();
+  $pdo->beginTransaction();
+  $settingsStmt = $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (?, ?) ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)');
+  $persist = function (string $key, $value) use ($settingsStmt) {
+    $serialized = (is_array($value) || is_object($value))
+      ? json_encode($value, JSON_UNESCAPED_UNICODE)
+      : (string)$value;
+    if ($serialized === null && (is_array($value) || is_object($value))) {
+      throw new RuntimeException('Falha ao serializar configuração '.$key);
+    }
+    if (!$settingsStmt->execute([$key, $serialized])) {
+      throw new RuntimeException('Erro ao salvar configuração '.$key);
+    }
+  };
 
+  try {
   $storeName = pm_sanitize($_POST['store_name'] ?? '', 120);
   if ($storeName === '') {
     $errors[] = 'Informe o nome da loja.';
   } else {
-    $updates['store_name'] = $storeName;
+    $persist('store_name', $storeName);
   }
 
   $storeEmail = trim((string)($_POST['store_email'] ?? ''));
   if ($storeEmail !== '') {
     if (validate_email($storeEmail)) {
-      $updates['store_email'] = $storeEmail;
+      $persist('store_email', $storeEmail);
     } else {
       $errors[] = 'E-mail de suporte inválido.';
     }
   } else {
-    $updates['store_email'] = '';
+    $persist('store_email', '');
   }
 
   $storePhone = pm_sanitize($_POST['store_phone'] ?? '', 60);
-  $updates['store_phone'] = $storePhone;
+  $persist('store_phone', $storePhone);
 
   $storeAddress = pm_sanitize($_POST['store_address'] ?? '', 240);
-  $updates['store_address'] = $storeAddress;
+  $persist('store_address', $storeAddress);
 
   $metaTitle = pm_sanitize($_POST['store_meta_title'] ?? '', 160);
   if ($metaTitle === '') {
     $metaTitle = ($storeName ?: 'Get Power Research').' | Loja';
   }
-  $updates['store_meta_title'] = $metaTitle;
+  $persist('store_meta_title', $metaTitle);
 
   $pwaName = pm_sanitize($_POST['pwa_name'] ?? '', 80);
   if ($pwaName === '') {
     $pwaName = $storeName ?: 'Get Power Research';
   }
-  $updates['pwa_name'] = $pwaName;
+  $persist('pwa_name', $pwaName);
 
   $pwaShort = pm_sanitize($_POST['pwa_short_name'] ?? '', 40);
   if ($pwaShort === '') {
     $pwaShort = $pwaName;
   }
-  $updates['pwa_short_name'] = $pwaShort;
+  $persist('pwa_short_name', $pwaShort);
 
   if (!empty($_FILES['store_logo']['name'])) {
     $upload = save_logo_upload($_FILES['store_logo']);
     if (!empty($upload['success'])) {
-      $updates['store_logo_url'] = $upload['path'];
-      $updates['store_logo'] = $upload['path'];
+      $persist('store_logo_url', $upload['path']);
+      $persist('store_logo', $upload['path']);
     } else {
       $errors[] = $upload['message'] ?? 'Falha ao enviar logo.';
     }
@@ -396,8 +419,8 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($heroSubtitle === '') {
     $heroSubtitle = 'Experiência de app, rápida e segura.';
   }
-  $updates['home_hero_title'] = $heroTitle;
-  $updates['home_hero_subtitle'] = $heroSubtitle;
+  $persist('home_hero_title', $heroTitle);
+  $persist('home_hero_subtitle', $heroSubtitle);
 
   $featuredEnabled = isset($_POST['home_featured_enabled']) ? '1' : '0';
   $featuredTitle = pm_sanitize($_POST['home_featured_title'] ?? '', 80);
@@ -420,39 +443,39 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($featuredBadgeText === '') {
     $featuredBadgeText = 'Selecionados com carinho para você';
   }
-  $updates['home_featured_enabled'] = $featuredEnabled;
-  $updates['home_featured_title'] = $featuredTitle;
-  $updates['home_featured_subtitle'] = $featuredSubtitle;
-  $updates['home_featured_label'] = $featuredLabel;
-  $updates['home_featured_badge_title'] = $featuredBadgeTitle;
-  $updates['home_featured_badge_text'] = $featuredBadgeText;
+  $persist('home_featured_enabled', $featuredEnabled);
+  $persist('home_featured_title', $featuredTitle);
+  $persist('home_featured_subtitle', $featuredSubtitle);
+  $persist('home_featured_label', $featuredLabel);
+  $persist('home_featured_badge_title', $featuredBadgeTitle);
+  $persist('home_featured_badge_text', $featuredBadgeText);
 
   $footerCopy = pm_clip_text($_POST['footer_copy'] ?? '', 280);
   if ($footerCopy === '') {
     $footerCopy = '© {{year}} '.($storeName ?: 'Sua Loja').'. Todos os direitos reservados.';
   }
-  $updates['footer_copy'] = $footerCopy;
+  $persist('footer_copy', $footerCopy);
 
   $hoursEnabled = !empty($_POST['store_hours_enabled']) ? '1' : '0';
-  $updates['store_hours_enabled'] = $hoursEnabled;
+  $persist('store_hours_enabled', $hoursEnabled);
 
   $hoursLabel = pm_sanitize($_POST['store_hours_label'] ?? '', 160);
   if ($hoursLabel === '') {
     $hoursLabel = 'Seg a Sex: 09h às 18h (BRT)';
   }
-  $updates['store_hours_label'] = $hoursLabel;
+  $persist('store_hours_label', $hoursLabel);
 
   $openInput = trim((string)($_POST['store_hours_open_time'] ?? ''));
   if (!preg_match('/^\d{2}:\d{2}$/', $openInput)) {
     $openInput = '09:00';
   }
-  $updates['store_hours_open_time'] = $openInput;
+  $persist('store_hours_open_time', $openInput);
 
   $closeInput = trim((string)($_POST['store_hours_close_time'] ?? ''));
   if (!preg_match('/^\d{2}:\d{2}$/', $closeInput)) {
     $closeInput = '18:00';
   }
-  $updates['store_hours_close_time'] = $closeInput;
+  $persist('store_hours_close_time', $closeInput);
 
   $tzInput = trim((string)($_POST['store_hours_timezone'] ?? ''));
   if ($tzInput === '') {
@@ -463,13 +486,13 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   } catch (Throwable $e) {
     $tzInput = 'America/Sao_Paulo';
   }
-  $updates['store_hours_timezone'] = $tzInput;
+  $persist('store_hours_timezone', $tzInput);
 
   $emailFromName = pm_sanitize($_POST['email_from_name'] ?? '', 160);
   if ($emailFromName === '') {
     $emailFromName = $storeName ?: 'Get Power Research';
   }
-  $updates['email_from_name'] = $emailFromName;
+  $persist('email_from_name', $emailFromName);
 
   $emailFromAddress = trim((string)($_POST['email_from_address'] ?? ''));
   if ($emailFromAddress !== '' && !validate_email($emailFromAddress)) {
@@ -478,26 +501,26 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($emailFromAddress === '') {
       $emailFromAddress = $storeEmail ?: setting_get('store_email', '');
     }
-    $updates['email_from_address'] = $emailFromAddress;
+    $persist('email_from_address', $emailFromAddress);
   }
 
   $a2hsTitle = pm_sanitize($_POST['a2hs_title'] ?? '', 160);
   if ($a2hsTitle === '') {
     $a2hsTitle = 'Instalar App '.($storeName ?: 'Get Power Research');
   }
-  $updates['a2hs_title'] = $a2hsTitle;
+  $persist('a2hs_title', $a2hsTitle);
 
   $a2hsSubtitle = pm_clip_text($_POST['a2hs_subtitle'] ?? '', 240);
   if ($a2hsSubtitle === '') {
     $a2hsSubtitle = 'Experiência completa no seu dispositivo.';
   }
-  $updates['a2hs_subtitle'] = $a2hsSubtitle;
+  $persist('a2hs_subtitle', $a2hsSubtitle);
 
   $a2hsButton = pm_sanitize($_POST['a2hs_button_label'] ?? '', 80);
   if ($a2hsButton === '') {
     $a2hsButton = 'Instalar App';
   }
-  $updates['a2hs_button_label'] = $a2hsButton;
+  $persist('a2hs_button_label', $a2hsButton);
 
   $currentA2hsIcon = setting_get('a2hs_icon', '');
   if (!empty($_FILES['a2hs_icon']['name'])) {
@@ -509,7 +532,7 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
           @unlink($full);
         }
       }
-      $updates['a2hs_icon'] = $upload['path'];
+      $persist('a2hs_icon', $upload['path']);
     } else {
       $errors[] = $upload['message'] ?? 'Falha ao enviar ícone do popup.';
     }
@@ -520,7 +543,7 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         @unlink($full);
       }
     }
-    $updates['a2hs_icon'] = '';
+    $persist('a2hs_icon', '');
   }
 
   $emailDefaultSet = email_template_defaults($storeName ?: (cfg()['store']['name'] ?? 'Sua Loja'));
@@ -528,25 +551,25 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($emailCustomerSubject === '') {
     $emailCustomerSubject = $emailDefaultSet['customer_subject'];
   }
-  $updates['email_customer_subject'] = $emailCustomerSubject;
+  $persist('email_customer_subject', $emailCustomerSubject);
 
   $emailCustomerBody = pm_clip_text($_POST['email_customer_body'] ?? '', 8000);
   if ($emailCustomerBody === '') {
     $emailCustomerBody = $emailDefaultSet['customer_body'];
   }
-  $updates['email_customer_body'] = $emailCustomerBody;
+  $persist('email_customer_body', $emailCustomerBody);
 
   $emailAdminSubject = pm_sanitize($_POST['email_admin_subject'] ?? '', 180);
   if ($emailAdminSubject === '') {
     $emailAdminSubject = $emailDefaultSet['admin_subject'];
   }
-  $updates['email_admin_subject'] = $emailAdminSubject;
+  $persist('email_admin_subject', $emailAdminSubject);
 
   $emailAdminBody = pm_clip_text($_POST['email_admin_body'] ?? '', 8000);
   if ($emailAdminBody === '') {
     $emailAdminBody = $emailDefaultSet['admin_body'];
   }
-  $updates['email_admin_body'] = $emailAdminBody;
+  $persist('email_admin_body', $emailAdminBody);
 
   $whatsEnabled = isset($_POST['whatsapp_enabled']) ? '1' : '0';
   $whatsNumberRaw = pm_sanitize($_POST['whatsapp_number'] ?? '', 40);
@@ -559,10 +582,10 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($whatsMessage === '') {
     $whatsMessage = 'Olá! Gostaria de tirar uma dúvida sobre os produtos.';
   }
-  $updates['whatsapp_enabled'] = $whatsEnabled;
-  $updates['whatsapp_number'] = $whatsNumber;
-  $updates['whatsapp_button_text'] = $whatsButtonText;
-  $updates['whatsapp_message'] = $whatsMessage;
+  $persist('whatsapp_enabled', $whatsEnabled);
+  $persist('whatsapp_number', $whatsNumber);
+  $persist('whatsapp_button_text', $whatsButtonText);
+  $persist('whatsapp_message', $whatsMessage);
 
   if (!empty($_FILES['pwa_icon']['name'])) {
     $pwaUpload = save_pwa_icon_upload($_FILES['pwa_icon']);
@@ -574,43 +597,45 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!preg_match('/^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/', $themeColor)) {
     $themeColor = '#2060C8';
   }
-  $updates['theme_color'] = strtoupper($themeColor);
+  $persist('theme_color', strtoupper($themeColor));
   $headerSublineNew = pm_sanitize($_POST['header_subline'] ?? '', 120);
   if ($headerSublineNew === '') $headerSublineNew = 'Loja Online';
-  $updates['header_subline'] = $headerSublineNew;
+  $persist('header_subline', $headerSublineNew);
   $footerTitleNew = pm_sanitize($_POST['footer_title'] ?? '', 80);
   if ($footerTitleNew === '') $footerTitleNew = 'Get Power Research';
-  $updates['footer_title'] = $footerTitleNew;
+  $persist('footer_title', $footerTitleNew);
   $footerDescriptionNew = pm_sanitize($_POST['footer_description'] ?? '', 160);
   if ($footerDescriptionNew === '') $footerDescriptionNew = 'Sua loja online com experiência de app.';
-  $updates['footer_description'] = $footerDescriptionNew;
+  $persist('footer_description', $footerDescriptionNew);
 
   $googleAnalyticsCode = pm_clip_text($_POST['google_analytics_code'] ?? '', 8000);
-  $updates['google_analytics_code'] = $googleAnalyticsCode;
+  $persist('google_analytics_code', $googleAnalyticsCode);
 
   $policyAllowedTags = '<p><br><strong><em><span><ul><ol><li><a><h1><h2><h3>';
   $privacyContent = pm_safe_html($_POST['privacy_policy_content'] ?? '', $policyAllowedTags, 10000);
   $refundContent = pm_safe_html($_POST['refund_policy_content'] ?? '', $policyAllowedTags, 10000);
-  $updates['privacy_policy_content'] = $privacyContent;
-  $updates['refund_policy_content'] = $refundContent;
-
-  if ($updates) {
-    foreach ($updates as $updateKey => $updateValue) {
-      if (!setting_set($updateKey, $updateValue)) {
-        $errors[] = 'Falha ao salvar a configuração "'.$updateKey.'". Tente novamente.';
-        break;
-      }
-    }
-  }
+  $persist('privacy_policy_content', $privacyContent);
+  $persist('refund_policy_content', $refundContent);
 
   if ($errors) {
-    $_SESSION['settings_general_error'] = implode(' ', $errors);
-    header('Location: settings.php?tab=general&error=1');
-    exit;
+    throw new RuntimeException('validation_errors');
   }
 
+  $pdo->commit();
   header('Location: settings.php?tab=general&saved=1');
   exit;
+  } catch (Throwable $e) {
+  try { $pdo->rollBack(); } catch (Throwable $rollbackErr) {}
+  if ($e->getMessage() !== 'validation_errors') {
+    settings_log_error('save_general: '.$e->getMessage());
+    if (!$errors) {
+      $errors[] = 'Erro inesperado ao salvar as configurações. Tente novamente em instantes.';
+    }
+  }
+  $_SESSION['settings_general_error'] = implode(' ', $errors);
+  header('Location: settings.php?tab=general&error=1');
+  exit;
+}
 }
 
 if ($action === 'export_cities') {
