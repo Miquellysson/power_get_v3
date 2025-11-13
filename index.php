@@ -478,14 +478,18 @@ function app_header() {
   $logoUrl = $logo;
   if ($logo) {
     $logoUrl = function_exists('cache_busted_url') ? cache_busted_url($logo) : $logo;
+    if ($logoUrl !== '' && !preg_match('~^https?://~i', $logoUrl)) {
+      $logoUrl = '/' . ltrim($logoUrl, '/');
+    }
   }
-  $storeNameHeader = setting_get('store_name', $cfg['store']['name'] ?? 'Get Power Research');
+  $defaultStoreName = $cfg['store']['name'] ?? 'Rancho nossa tera';
+  $storeNameHeader = setting_get('store_name', $defaultStoreName);
   $storeHoursStatus = function_exists('store_hours_status') ? store_hours_status() : ['label' => '', 'is_open' => false, 'status_text' => ''];
-  $metaTitle = setting_get('store_meta_title', (($cfg['store']['name'] ?? 'Get Power Research').' | Loja'));
+  $metaTitle = setting_get('store_meta_title', (($cfg['store']['name'] ?? $defaultStoreName).' | Loja'));
   if (!empty($GLOBALS['app_meta_title'])) {
     $metaTitle = (string)$GLOBALS['app_meta_title'];
   }
-  $pwaName = setting_get('pwa_name', $cfg['store']['name'] ?? 'Get Power Research');
+  $pwaName = setting_get('pwa_name', $cfg['store']['name'] ?? $defaultStoreName);
   $pwaShortName = setting_get('pwa_short_name', $pwaName);
   $pwaIconApple = pwa_icon_url(180);
   $pwaIcon512 = pwa_icon_url(512);
@@ -516,7 +520,7 @@ function app_header() {
   echo '  <meta http-equiv="Pragma" content="no-cache">';
   echo '  <meta http-equiv="Expires" content="0">';
   echo '  <title>'.htmlspecialchars($metaTitle, ENT_QUOTES, 'UTF-8').'</title>';
-  $defaultDescription = setting_get('store_meta_description', ($cfg['store']['name'] ?? 'Get Power Research').' — experiência tipo app: rápida, responsiva e segura.');
+  $defaultDescription = setting_get('store_meta_description', ($cfg['store']['name'] ?? $defaultStoreName).' — experiência tipo app: rápida, responsiva e segura.');
   if (!empty($GLOBALS['app_meta_description'])) {
     $defaultDescription = (string)$GLOBALS['app_meta_description'];
   }
@@ -583,6 +587,8 @@ function app_header() {
   if ($a2hsIconSetting) {
     $iconPath = ltrim($a2hsIconSetting, '/');
     $a2hsIcon = '/' . ltrim(function_exists('cache_busted_url') ? cache_busted_url($iconPath) : $iconPath, '/');
+  } elseif ($logoUrl) {
+    $a2hsIcon = preg_match('~^https?://~i', $logoUrl) ? $logoUrl : '/' . ltrim($logoUrl, '/');
   } else {
     $a2hsIcon = function_exists('asset_url') ? '/' . ltrim(asset_url('assets/icons/farma-192.png'), '/') : '/assets/icons/farma-192.png';
   }
@@ -4179,6 +4185,40 @@ if ($route === 'product') {
     }
   }
 
+  $skuCode = trim((string)($product['sku'] ?? ''));
+  $weightValue = trim((string)($product['weight'] ?? ''));
+  if ($weightValue === '') {
+    $weightValue = 'Sob consulta';
+  }
+  $dimensionsValue = trim((string)($product['dimensions'] ?? ''));
+  if ($dimensionsValue === '') {
+    $dimensionsValue = 'Sob consulta';
+  }
+  $specLabels = array_map(function ($entry) {
+    $label = is_array($entry) && isset($entry['label']) ? $entry['label'] : '';
+    $decoded = html_entity_decode((string)$label, ENT_QUOTES, 'UTF-8');
+    return strtolower(trim(strip_tags($decoded)));
+  }, $specs);
+  $prependSpec = function (string $label, string $value) use (&$specs, &$specLabels) {
+    $value = trim($value);
+    if ($value === '') {
+      return;
+    }
+    $labelKey = strtolower($label);
+    if (in_array($labelKey, $specLabels, true)) {
+      return;
+    }
+    array_unshift($specs, [
+      'label' => htmlspecialchars($label, ENT_QUOTES, 'UTF-8'),
+      'value' => htmlspecialchars($value, ENT_QUOTES, 'UTF-8'),
+    ]);
+    array_unshift($specLabels, $labelKey);
+  };
+  $prependSpec('Dimensões', $dimensionsValue);
+  $prependSpec('Peso', $weightValue);
+  $prependSpec('Categoria', $categoryName ?: 'Catálogo geral');
+  $prependSpec('SKU', $skuCode !== '' ? $skuCode : 'Não informado');
+
   $additionalInfo = trim((string)($product['additional_info'] ?? ''));
   if ($additionalInfo !== '') {
     $additionalInfo = sanitize_builder_output($additionalInfo);
@@ -4187,6 +4227,11 @@ if ($route === 'product') {
   $paymentConditions = trim((string)($product['payment_conditions'] ?? ''));
   $deliveryInfo = trim((string)($product['delivery_info'] ?? ''));
   $videoUrl = trim((string)($product['video_url'] ?? ''));
+  if ($deliveryInfo !== '') {
+    $deliveryInfo = sanitize_builder_output($deliveryInfo);
+  } else {
+    $deliveryInfo = '<p>Entregamos em todo o Brasil com atualização em tempo real do seu pedido. Após a confirmação do pagamento, despachamos em até 24h úteis e enviamos o código de rastreio por e-mail e WhatsApp.</p>';
+  }
 
   $galleryImages = [];
   if (!empty($product['media_gallery'])) {
@@ -4205,6 +4250,9 @@ if ($route === 'product') {
   }
   $galleryImages = array_values(array_unique(array_filter($galleryImages)));
   $galleryImages = array_slice($galleryImages, 0, 4);
+  if (!$galleryImages) {
+    $galleryImages[] = proxy_img('assets/no-image.png');
+  }
 
   $currencyCode = strtoupper($product['currency'] ?? ($cfg['store']['currency'] ?? 'USD'));
   $priceValue = (float)($product['price'] ?? 0);
@@ -4218,9 +4266,127 @@ if ($route === 'product') {
 
   $stock = (int)($product['stock'] ?? 0);
   $inStock = $stock > 0;
+  $isLowStock = $inStock && $stock <= 5;
+  $shippingHeadline = $shippingCost <= 0 ? 'Frete grátis para todo o Brasil' : 'Frete a partir de '.$shippingFormatted;
+  $shippingOptions = [
+    [
+      'label' => 'Entrega padrão',
+      'detail' => '3-7 dias úteis após confirmação',
+      'price' => $shippingCost <= 0 ? 'Grátis' : $shippingFormatted,
+    ],
+    [
+      'label' => 'Expressa',
+      'detail' => '1-3 dias úteis nas capitais',
+      'price' => $shippingCost <= 0 ? 'Sob consulta' : format_currency($shippingCost + 19.9, $currencyCode),
+    ],
+    [
+      'label' => 'Retirada local',
+      'detail' => 'Disponível em até 24h',
+      'price' => 'Grátis',
+    ],
+  ];
 
   $categoryName = $product['category_name'] ?? '';
   $categoryId = (int)($product['category_id'] ?? 0);
+  $productNameSafe = htmlspecialchars($productName, ENT_QUOTES, 'UTF-8');
+  $categoryNameSafe = $categoryName ? htmlspecialchars($categoryName, ENT_QUOTES, 'UTF-8') : '';
+  $shortDescriptionSafe = $shortDescription !== '' ? htmlspecialchars($shortDescription, ENT_QUOTES, 'UTF-8') : '';
+  $paymentConditionsSafe = $paymentConditions !== '' ? htmlspecialchars($paymentConditions, ENT_QUOTES, 'UTF-8') : '';
+  $urgencySafe = $urgencyMessage !== '' ? htmlspecialchars($urgencyMessage, ENT_QUOTES, 'UTF-8') : '';
+  $shippingHeadlineSafe = htmlspecialchars($shippingHeadline, ENT_QUOTES, 'UTF-8');
+  $skuSafe = $skuCode !== '' ? htmlspecialchars($skuCode, ENT_QUOTES, 'UTF-8') : 'N/D';
+  $avgRatingDisplay = $avgRating > 0 ? str_replace('.', ',', number_format($avgRating, 1)) : '5,0';
+
+  $paymentButtons = [];
+  $squareGeneral = trim((string)($product['square_payment_link'] ?? ''));
+  $squareCredit = trim((string)($product['square_credit_link'] ?? ''));
+  $squareDebit = trim((string)($product['square_debit_link'] ?? ''));
+  $squareAfterpay = trim((string)($product['square_afterpay_link'] ?? ''));
+  $stripeLink = trim((string)($product['stripe_payment_link'] ?? ''));
+  if ($squareCredit !== '') {
+    $paymentButtons[] = [
+      'label' => 'Square Crédito',
+      'subtitle' => 'Divida em até 12x sem juros',
+      'icon' => 'fa-solid fa-credit-card',
+      'url' => $squareCredit,
+    ];
+  }
+  if ($squareDebit !== '') {
+    $paymentButtons[] = [
+      'label' => 'Square Débito',
+      'subtitle' => 'Compensação imediata',
+      'icon' => 'fa-solid fa-money-bill-transfer',
+      'url' => $squareDebit,
+    ];
+  }
+  if ($squareAfterpay !== '') {
+    $paymentButtons[] = [
+      'label' => 'Square Afterpay',
+      'subtitle' => 'Pague depois em 4 parcelas',
+      'icon' => 'fa-solid fa-clock',
+      'url' => $squareAfterpay,
+    ];
+  }
+  if ($squareGeneral !== '') {
+    $paymentButtons[] = [
+      'label' => 'Square Checkout',
+      'subtitle' => 'Pix, boleto e cartões',
+      'icon' => 'fa-solid fa-link',
+      'url' => $squareGeneral,
+    ];
+  }
+  if ($stripeLink !== '') {
+    $paymentButtons[] = [
+      'label' => 'Stripe Checkout',
+      'subtitle' => 'Cartões + Apple/Google Pay',
+      'icon' => 'fa-brands fa-cc-stripe',
+      'url' => $stripeLink,
+    ];
+  }
+
+  $sampleReviews = [
+    [
+      'name' => 'Ana Paula',
+      'rating' => 5,
+      'comment' => 'Produto exatamente como anunciado e entrega super rápida. Recomendo demais!',
+      'date' => 'há 2 dias',
+    ],
+    [
+      'name' => 'Marcos Vinícius',
+      'rating' => 4.5,
+      'comment' => 'Atendimento excelente, consegui tirar dúvidas pelo WhatsApp antes de finalizar a compra.',
+      'date' => 'há 1 semana',
+    ],
+    [
+      'name' => 'Sueli Andrade',
+      'rating' => 4.8,
+      'comment' => 'Chegou muito bem embalado e com brindes. Voltarei a comprar com certeza.',
+      'date' => 'há 3 semanas',
+    ],
+  ];
+  $avgRating = 0;
+  $reviewCount = count($sampleReviews);
+  if ($reviewCount > 0) {
+    $avgRating = array_sum(array_map(fn($item) => (float)$item['rating'], $sampleReviews)) / $reviewCount;
+    $avgRating = round($avgRating, 1);
+  }
+  $ratingPercent = $avgRating > 0 ? intval(($avgRating / 5) * 100) : 0;
+  $urgencyMessage = '';
+  if ($isLowStock) {
+    $urgencyMessage = 'Últimas unidades! '.$stock.' em estoque.';
+  } elseif ($discountPercent) {
+    $urgencyMessage = 'Oferta limitada: preço exclusivo on-line.';
+  }
+  $ratingStarsHtml = '';
+  for ($i = 1; $i <= 5; $i++) {
+    if ($avgRating >= $i) {
+      $ratingStarsHtml .= '<i class="fa-solid fa-star"></i>';
+    } elseif ($avgRating + 0.25 >= $i) {
+      $ratingStarsHtml .= '<i class="fa-solid fa-star-half-stroke"></i>';
+    } else {
+      $ratingStarsHtml .= '<i class="fa-regular fa-star text-gray-300"></i>';
+    }
+  }
 
   $relatedStmt = $pdo->prepare("SELECT p.id, p.slug, p.name, p.price, p.price_compare, p.image_path
                                 FROM products p
@@ -4240,279 +4406,7 @@ if ($route === 'product') {
   }
 
   app_header();
-
-  echo '<section class="max-w-6xl mx-auto px-4 py-10 space-y-12">';
-
-  echo '  <div class="grid lg:grid-cols-2 gap-10">';
-  echo '    <div class="space-y-6">';
-  if ($galleryImages) {
-    $mainImage = htmlspecialchars($galleryImages[0], ENT_QUOTES, 'UTF-8');
-    echo '      <div class="relative bg-white rounded-3xl shadow overflow-hidden">';
-    echo '        <div class="aspect-square w-full bg-gray-50 flex items-center justify-center">';
-    echo '          <img id="product-main-image" src="'.$mainImage.'" alt="'.htmlspecialchars($productName, ENT_QUOTES, 'UTF-8').'" class="max-h-full max-w-full object-contain transition-transform duration-300">';
-    echo '        </div>';
-    echo '      </div>';
-    if (count($galleryImages) > 1) {
-      echo '      <div class="flex gap-3 flex-wrap">';
-      foreach ($galleryImages as $idx => $imgPath) {
-        $thumb = htmlspecialchars($imgPath, ENT_QUOTES, 'UTF-8');
-        $isActive = $idx === 0 ? 'border-brand-600 ring-2 ring-brand-200' : 'border-transparent';
-        echo '        <button type="button" class="w-20 h-20 rounded-xl border '.$isActive.' overflow-hidden bg-white shadow-sm hover:border-brand-400" data-gallery-image="'.$thumb.'">';
-        echo '          <img src="'.$thumb.'" alt="thumb" class="w-full h-full object-cover">';
-        echo '        </button>';
-      }
-      echo '      </div>';
-    }
-  }
-  if ($videoUrl !== '') {
-    $safeVideo = htmlspecialchars($videoUrl, ENT_QUOTES, 'UTF-8');
-    echo '      <div class="bg-white rounded-2xl shadow p-4">';
-    echo '        <h3 class="font-semibold mb-3 flex items-center gap-2"><i class="fa-solid fa-circle-play text-brand-600"></i> Vídeo demonstrativo</h3>';
-    if (strpos($videoUrl, 'youtube.com') !== false || strpos($videoUrl, 'youtu.be') !== false) {
-      if (preg_match('~(youtu\\.be/|v=)([\\w-]+)~', $videoUrl, $match)) {
-        $videoId = $match[2];
-        echo '        <div class="relative aspect-video rounded-xl overflow-hidden">';
-        echo '          <iframe class="w-full h-full" src="https://www.youtube.com/embed/'.htmlspecialchars($videoId, ENT_QUOTES, 'UTF-8').'" frameborder="0" allowfullscreen></iframe>';
-        echo '        </div>';
-      } else {
-        echo '        <a class="text-brand-600 underline" href="'.$safeVideo.'" target="_blank" rel="noopener">Assistir vídeo</a>';
-      }
-    } else {
-      echo '        <a class="text-brand-600 underline" href="'.$safeVideo.'" target="_blank" rel="noopener">Assistir vídeo</a>';
-    }
-    echo '      </div>';
-  }
-  echo '    </div>';
-
-  echo '    <div class="space-y-6">';
-  if ($categoryName) {
-    echo '      <div class="text-sm text-brand-600 uppercase font-semibold">'.htmlspecialchars($categoryName, ENT_QUOTES, 'UTF-8').'</div>';
-  }
-  echo '      <h1 class="text-3xl md:text-4xl font-bold text-gray-900">'.htmlspecialchars($productName, ENT_QUOTES, 'UTF-8').'</h1>';
-  if ($shortDescription) {
-    echo '      <p class="text-gray-600">'.$shortDescription.'</p>';
-  }
-
-  echo '      <div class="bg-white rounded-2xl shadow p-5 space-y-3">';
-  echo '        <div class="flex items-center gap-3 flex-wrap">';
-  if ($compareFormatted) {
-    echo '          <span class="text-sm text-gray-400 line-through">De '.$compareFormatted.'</span>';
-  }
-  echo '          <span class="text-3xl font-bold text-brand-700">'.$priceFormatted.'</span>';
-  if ($discountPercent) {
-    echo '          <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">'.$discountPercent.'% OFF</span>';
-  }
-  echo '        </div>';
-  echo '        <div class="text-sm text-gray-600">Pagamento: '.($paymentConditions !== '' ? htmlspecialchars($paymentConditions, ENT_QUOTES, 'UTF-8') : 'Ver opções no checkout.').'</div>';
-  echo '        <div class="text-sm text-gray-600">Frete padrão: <strong>'.$shippingFormatted.'</strong></div>';
-  echo '        <div class="flex items-center gap-2 text-sm">';
-  if ($inStock) {
-    $stockLabel = $stock <= 5 ? 'Poucas unidades restantes' : 'Em estoque';
-    echo '          <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> '.$stockLabel.'</span>';
-    echo '          <span class="text-gray-500">Estoque: '.$stock.' unidade(s)</span>';
-  } else {
-    echo '          <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-700"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Esgotado</span>';
-  }
-  echo '        </div>';
-  echo '      </div>';
-
-  echo '      <div class="bg-white rounded-2xl shadow p-5 space-y-4">';
-  echo '        <div class="flex items-center gap-3">';
-  echo '          <div class="text-sm font-semibold">Quantidade</div>';
-  echo '          <div class="flex items-center border rounded-full overflow-hidden">';
-  echo '            <button type="button" class="w-10 h-10 flex items-center justify-center text-lg text-gray-600" id="qtyDecrease"><i class="fa-solid fa-minus"></i></button>';
-  echo '            <input type="number" min="1" value="1" id="quantityInput" class="w-16 text-center border-x border-gray-200 focus:outline-none" />';
-  echo '            <button type="button" class="w-10 h-10 flex items-center justify-center text-lg text-gray-600" id="qtyIncrease"><i class="fa-solid fa-plus"></i></button>';
-  echo '          </div>';
-  echo '        </div>';
-  if ($inStock) {
-    echo '        <div class="grid sm:grid-cols-2 gap-3">';
-    echo '          <button type="button" class="px-5 py-3 rounded-xl bg-brand-600 text-white hover:bg-brand-700 text-sm font-semibold flex items-center justify-center gap-2" id="btnBuyNow"><i class="fa-solid fa-cart-shopping"></i> Adicionar ao carrinho</button>';
-    echo '          <a href="?route=checkout" class="px-5 py-3 rounded-xl border border-brand-200 text-brand-700 hover:bg-brand-50 text-sm font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-flash"></i> Comprar agora</a>';
-    echo '        </div>';
-  } else {
-    echo '        <div class="px-5 py-3 rounded-xl bg-gray-200 text-gray-500 text-center font-semibold">Avise-me quando disponível</div>';
-  }
-  echo '      </div>';
-
-  echo '      <div class="bg-white rounded-2xl shadow p-5 space-y-4">';
-  echo '        <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-truck-fast text-brand-600"></i> Estimativa de frete</h3>';
-  echo '        <p class="text-sm text-gray-500">Informe seu CEP para estimar o prazo de entrega. O valor base é configurado no painel administrativo.</p>';
-  echo '        <div class="flex gap-3 flex-col sm:flex-row">';
-  echo '          <input type="text" maxlength="9" placeholder="00000-000" id="cepInput" class="flex-1 px-4 py-3 border rounded-lg" />';
-  echo '          <button type="button" class="px-5 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800" id="calcFreightBtn">Calcular frete</button>';
-  echo '        </div>';
-  echo '        <div id="freightResult" class="text-sm text-gray-600 hidden"></div>';
-  echo '      </div>';
-
-  echo '      <div class="bg-white rounded-2xl shadow p-5 space-y-3">';
-  echo '        <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-shield-check text-brand-600"></i> Compra segura</h3>';
-  echo '        <ul class="text-sm text-gray-600 space-y-2">';
-  echo '          <li><i class="fa-solid fa-lock text-brand-600 mr-2"></i> Pagamento criptografado e seguro</li>';
-  echo '          <li><i class="fa-solid fa-arrow-rotate-left text-brand-600 mr-2"></i> Troca e devolução garantidas (consulte nossas políticas)</li>';
-  echo '          <li><i class="fa-solid fa-headset text-brand-600 mr-2"></i> Suporte ao cliente dedicado via WhatsApp</li>';
-  echo '        </ul>';
-  echo '        <div class="text-xs text-gray-500 space-x-3 pt-2">';
-  echo '          <a class="underline hover:text-brand-600" href="?route=privacy" target="_blank">Política de privacidade</a>';
-  echo '          <a class="underline hover:text-brand-600" href="?route=refund" target="_blank">Política de reembolso</a>';
-  echo '        </div>';
-  echo '      </div>';
-  echo '    </div>';
-  echo '  </div>';
-
-  echo '  <div class="bg-white rounded-3xl shadow p-6 space-y-6">';
-  echo '    <nav class="flex flex-wrap gap-4 text-sm font-semibold text-gray-600 border-b pb-3" id="productTabs">';
-  echo '      <button type="button" data-tab="description" class="px-3 py-2 rounded-lg bg-brand-50 text-brand-700">Descrição</button>';
-  if ($specs) {
-    echo '      <button type="button" data-tab="specs" class="px-3 py-2 rounded-lg hover:bg-gray-100">Especificações</button>';
-  }
-  if ($additionalInfo !== '') {
-    echo '      <button type="button" data-tab="additional" class="px-3 py-2 rounded-lg hover:bg-gray-100">Informações adicionais</button>';
-  }
-  echo '      <button type="button" data-tab="reviews" class="px-3 py-2 rounded-lg hover:bg-gray-100">Avaliações</button>';
-  echo '    </nav>';
-  echo '    <div class="space-y-8" id="productTabPanels">';
-  echo '      <div data-panel="description">';
-  echo '        <div class="prose prose-sm sm:prose md:prose-lg max-w-none text-gray-700">'.$detailedDescription.'</div>';
-  echo '      </div>';
-  if ($specs) {
-    echo '      <div data-panel="specs" class="hidden">';
-    echo '        <div class="overflow-x-auto">';
-    echo '          <table class="min-w-full text-sm">';
-    echo '            <tbody>';
-    foreach ($specs as $entry) {
-      echo '              <tr class="border-b last:border-0">';
-      echo '                <th class="text-left font-semibold py-3 pr-6 text-gray-600">'. $entry['label'] .'</th>';
-      echo '                <td class="py-3 text-gray-700">'. $entry['value'] .'</td>';
-      echo '              </tr>';
-    }
-    echo '            </tbody>';
-    echo '          </table>';
-    echo '        </div>';
-    echo '      </div>';
-  }
-  if ($additionalInfo !== '') {
-    echo '      <div data-panel="additional" class="hidden">';
-    echo '        <div class="prose prose-sm sm:prose md:prose-lg max-w-none text-gray-700">'.$additionalInfo.'</div>';
-    echo '      </div>';
-  }
-  echo '      <div data-panel="reviews" class="hidden">';
-  echo '        <div class="flex items-center gap-3 mb-4">';
-  echo '          <div class="text-3xl font-bold text-brand-600">4.8</div>';
-  echo '          <div class="text-sm text-gray-500">Avaliação média (sistema de reviews simplificado em desenvolvimento)</div>';
-  echo '        </div>';
-  echo '        <p class="text-sm text-gray-600">Em breve você poderá conferir opiniões reais de outros clientes sobre este produto.</p>';
-  echo '      </div>';
-  echo '    </div>';
-  echo '  </div>';
-
-  if ($relatedProducts) {
-    echo '  <div>';
-    echo '    <div class="flex items-center justify-between mb-4">';
-    echo '      <h2 class="text-xl font-bold">Produtos relacionados</h2>';
-    echo '      <a class="text-sm text-brand-600 hover:underline" href="?route=home">Ver todos</a>';
-    echo '    </div>';
-    echo '    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">';
-    foreach ($relatedProducts as $rel) {
-      $relImg = $rel['image_path'] ? proxy_img($rel['image_path']) : 'assets/no-image.png';
-      $relImgSafe = htmlspecialchars($relImg, ENT_QUOTES, 'UTF-8');
-      $relPrice = format_currency((float)$rel['price'], $currencyCode);
-      $relCompare = isset($rel['price_compare']) && $rel['price_compare'] > $rel['price'] ? format_currency((float)$rel['price_compare'], $currencyCode) : '';
-      $relDiscount = ($relCompare !== '') ? max(1, round(100 - ($rel['price'] / $rel['price_compare'] * 100))) : null;
-      $relUrl = $rel['slug'] ? ('?route=product&slug='.urlencode($rel['slug'])) : ('?route=product&id='.(int)$rel['id']);
-      echo '      <div class="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden flex flex-col">';
-      echo '        <a href="'.$relUrl.'" class="block relative h-44 bg-gray-50 overflow-hidden">';
-      echo '          <img src="'.$relImgSafe.'" alt="'.htmlspecialchars($rel['name'], ENT_QUOTES, 'UTF-8').'" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">';
-      echo '          '.($relDiscount ? '<span class="absolute top-3 left-3 bg-brand-600 text-white text-xs font-semibold px-2 py-1 rounded-full">'.$relDiscount.'% OFF</span>' : '').'';
-      echo '        </a>';
-      echo '        <div class="p-4 flex flex-col space-y-2 flex-1">';
-      echo '          <a href="'.$relUrl.'" class="font-semibold text-gray-900 hover:text-brand-600">'.htmlspecialchars($rel['name'], ENT_QUOTES, 'UTF-8').'</a>';
-      if ($relCompare) {
-        echo '          <div class="text-sm text-gray-400 line-through">'.$relCompare.'</div>';
-      }
-      echo '          <div class="text-lg font-bold text-brand-700">'.$relPrice.'</div>';
-      echo '          <button type="button" class="mt-auto px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-sm" onclick="addToCart('.(int)$rel['id'].', \''.htmlspecialchars($rel['name'], ENT_QUOTES, 'UTF-8').'\', 1)">Adicionar</button>';
-      echo '        </div>';
-      echo '      </div>';
-    }
-    echo '    </div>';
-    echo '  </div>';
-  }
-
-  echo '</section>';
-
-  echo '<script>
-    (function(){
-      const mainImage = document.getElementById("product-main-image");
-      const buttons = document.querySelectorAll("[data-gallery-image]");
-      buttons.forEach(btn => {
-        btn.addEventListener("click", () => {
-          const url = btn.getAttribute("data-gallery-image");
-          if (mainImage && url) {
-            mainImage.src = url;
-            buttons.forEach(b => b.classList.remove("border-brand-600","ring-2","ring-brand-200"));
-            btn.classList.add("border-brand-600","ring-2","ring-brand-200");
-          }
-        });
-      });
-
-      const qtyInput = document.getElementById("quantityInput");
-      const decrease = document.getElementById("qtyDecrease");
-      const increase = document.getElementById("qtyIncrease");
-      if (decrease && increase && qtyInput) {
-        decrease.addEventListener("click", () => {
-          let current = parseInt(qtyInput.value, 10) || 1;
-          current = Math.max(1, current - 1);
-          qtyInput.value = current;
-        });
-        increase.addEventListener("click", () => {
-          let current = parseInt(qtyInput.value, 10) || 1;
-          qtyInput.value = current + 1;
-        });
-      }
-
-      const buyBtn = document.getElementById("btnBuyNow");
-      if (buyBtn && qtyInput) {
-        buyBtn.addEventListener("click", () => {
-          const qty = parseInt(qtyInput.value, 10) || 1;
-          addToCart('.$productId.', "'.htmlspecialchars($productName, ENT_QUOTES, 'UTF-8').'", qty);
-        });
-      }
-
-      const tabs = document.querySelectorAll("#productTabs button[data-tab]");
-      const panels = document.querySelectorAll("#productTabPanels [data-panel]");
-      tabs.forEach(tab => {
-        tab.addEventListener("click", () => {
-          const target = tab.getAttribute("data-tab");
-          tabs.forEach(t => t.classList.remove("bg-brand-50","text-brand-700"));
-          tab.classList.add("bg-brand-50","text-brand-700");
-          panels.forEach(panel => {
-            panel.classList.toggle("hidden", panel.getAttribute("data-panel") !== target);
-          });
-        });
-      });
-
-      const freightBtn = document.getElementById("calcFreightBtn");
-      const cepInput = document.getElementById("cepInput");
-      const resultBox = document.getElementById("freightResult");
-      if (freightBtn && cepInput && resultBox) {
-        freightBtn.addEventListener("click", () => {
-          const cep = (cepInput.value || "").replace(/\\D+/g, "");
-          if (cep.length !== 8) {
-            resultBox.textContent = "Informe um CEP válido com 8 dígitos.";
-            resultBox.classList.remove("hidden");
-            resultBox.classList.add("text-rose-600");
-            return;
-          }
-          resultBox.classList.remove("text-rose-600");
-          resultBox.classList.add("text-emerald-700");
-          resultBox.textContent = "Frete padrão disponível para o CEP "+cep.substr(0,5)+"-"+cep.substr(5)+" por '.$shippingFormatted.' (valor configurado pelo administrador).";
-          resultBox.classList.remove("hidden");
-        });
-      }
-    })();
-  </script>';
-
+  require __DIR__.'/partials/product_detail.php';
   app_footer();
   unset($GLOBALS['app_meta_title'], $GLOBALS['app_meta_description']);
   exit;

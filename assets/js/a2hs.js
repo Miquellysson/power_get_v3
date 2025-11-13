@@ -1,7 +1,7 @@
 /* a2hs.js — Popup/Modal bonito para instalar o app (Android + iOS) em /farmafixed */
 (function () {
   const customIcon = window.__A2HS_ICON__ || window.__APP_ICON__ || null;
-  const customAppName = window.__APP_NAME__ || 'Get Power Research';
+  const customAppName = window.__APP_NAME__ || 'Rancho nossa tera';
   const customModalTitle = window.__A2HS_TITLE__ || `Instalar App ${customAppName}`;
   const customModalSubtitle = window.__A2HS_SUBTITLE__ || '';
   const customButtonLabel = window.__A2HS_BUTTON__ || `Instalar App`;
