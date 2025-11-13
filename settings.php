@@ -334,54 +334,55 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!csrf_check($_POST['csrf'] ?? '')) die('CSRF');
   require_admin_capability('manage_settings');
   $errors = [];
+  $updates = [];
 
   $storeName = pm_sanitize($_POST['store_name'] ?? '', 120);
   if ($storeName === '') {
     $errors[] = 'Informe o nome da loja.';
   } else {
-    setting_set('store_name', $storeName);
+    $updates['store_name'] = $storeName;
   }
 
   $storeEmail = trim((string)($_POST['store_email'] ?? ''));
   if ($storeEmail !== '') {
     if (validate_email($storeEmail)) {
-      setting_set('store_email', $storeEmail);
+      $updates['store_email'] = $storeEmail;
     } else {
       $errors[] = 'E-mail de suporte inválido.';
     }
   } else {
-    setting_set('store_email', '');
+    $updates['store_email'] = '';
   }
 
   $storePhone = pm_sanitize($_POST['store_phone'] ?? '', 60);
-  setting_set('store_phone', $storePhone);
+  $updates['store_phone'] = $storePhone;
 
   $storeAddress = pm_sanitize($_POST['store_address'] ?? '', 240);
-  setting_set('store_address', $storeAddress);
+  $updates['store_address'] = $storeAddress;
 
   $metaTitle = pm_sanitize($_POST['store_meta_title'] ?? '', 160);
   if ($metaTitle === '') {
     $metaTitle = ($storeName ?: 'Get Power Research').' | Loja';
   }
-  setting_set('store_meta_title', $metaTitle);
+  $updates['store_meta_title'] = $metaTitle;
 
   $pwaName = pm_sanitize($_POST['pwa_name'] ?? '', 80);
   if ($pwaName === '') {
     $pwaName = $storeName ?: 'Get Power Research';
   }
-  setting_set('pwa_name', $pwaName);
+  $updates['pwa_name'] = $pwaName;
 
   $pwaShort = pm_sanitize($_POST['pwa_short_name'] ?? '', 40);
   if ($pwaShort === '') {
     $pwaShort = $pwaName;
   }
-  setting_set('pwa_short_name', $pwaShort);
+  $updates['pwa_short_name'] = $pwaShort;
 
   if (!empty($_FILES['store_logo']['name'])) {
     $upload = save_logo_upload($_FILES['store_logo']);
     if (!empty($upload['success'])) {
-      setting_set('store_logo_url', $upload['path']);
-      setting_set('store_logo', $upload['path']);
+      $updates['store_logo_url'] = $upload['path'];
+      $updates['store_logo'] = $upload['path'];
     } else {
       $errors[] = $upload['message'] ?? 'Falha ao enviar logo.';
     }
@@ -395,8 +396,8 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($heroSubtitle === '') {
     $heroSubtitle = 'Experiência de app, rápida e segura.';
   }
-  setting_set('home_hero_title', $heroTitle);
-  setting_set('home_hero_subtitle', $heroSubtitle);
+  $updates['home_hero_title'] = $heroTitle;
+  $updates['home_hero_subtitle'] = $heroSubtitle;
 
   $featuredEnabled = isset($_POST['home_featured_enabled']) ? '1' : '0';
   $featuredTitle = pm_sanitize($_POST['home_featured_title'] ?? '', 80);
@@ -419,39 +420,39 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($featuredBadgeText === '') {
     $featuredBadgeText = 'Selecionados com carinho para você';
   }
-  setting_set('home_featured_enabled', $featuredEnabled);
-  setting_set('home_featured_title', $featuredTitle);
-  setting_set('home_featured_subtitle', $featuredSubtitle);
-  setting_set('home_featured_label', $featuredLabel);
-  setting_set('home_featured_badge_title', $featuredBadgeTitle);
-  setting_set('home_featured_badge_text', $featuredBadgeText);
+  $updates['home_featured_enabled'] = $featuredEnabled;
+  $updates['home_featured_title'] = $featuredTitle;
+  $updates['home_featured_subtitle'] = $featuredSubtitle;
+  $updates['home_featured_label'] = $featuredLabel;
+  $updates['home_featured_badge_title'] = $featuredBadgeTitle;
+  $updates['home_featured_badge_text'] = $featuredBadgeText;
 
   $footerCopy = pm_clip_text($_POST['footer_copy'] ?? '', 280);
   if ($footerCopy === '') {
     $footerCopy = '© {{year}} '.($storeName ?: 'Sua Loja').'. Todos os direitos reservados.';
   }
-  setting_set('footer_copy', $footerCopy);
+  $updates['footer_copy'] = $footerCopy;
 
   $hoursEnabled = !empty($_POST['store_hours_enabled']) ? '1' : '0';
-  setting_set('store_hours_enabled', $hoursEnabled);
+  $updates['store_hours_enabled'] = $hoursEnabled;
 
   $hoursLabel = pm_sanitize($_POST['store_hours_label'] ?? '', 160);
   if ($hoursLabel === '') {
     $hoursLabel = 'Seg a Sex: 09h às 18h (BRT)';
   }
-  setting_set('store_hours_label', $hoursLabel);
+  $updates['store_hours_label'] = $hoursLabel;
 
   $openInput = trim((string)($_POST['store_hours_open_time'] ?? ''));
   if (!preg_match('/^\d{2}:\d{2}$/', $openInput)) {
     $openInput = '09:00';
   }
-  setting_set('store_hours_open_time', $openInput);
+  $updates['store_hours_open_time'] = $openInput;
 
   $closeInput = trim((string)($_POST['store_hours_close_time'] ?? ''));
   if (!preg_match('/^\d{2}:\d{2}$/', $closeInput)) {
     $closeInput = '18:00';
   }
-  setting_set('store_hours_close_time', $closeInput);
+  $updates['store_hours_close_time'] = $closeInput;
 
   $tzInput = trim((string)($_POST['store_hours_timezone'] ?? ''));
   if ($tzInput === '') {
@@ -462,13 +463,13 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   } catch (Throwable $e) {
     $tzInput = 'America/Sao_Paulo';
   }
-  setting_set('store_hours_timezone', $tzInput);
+  $updates['store_hours_timezone'] = $tzInput;
 
   $emailFromName = pm_sanitize($_POST['email_from_name'] ?? '', 160);
   if ($emailFromName === '') {
     $emailFromName = $storeName ?: 'Get Power Research';
   }
-  setting_set('email_from_name', $emailFromName);
+  $updates['email_from_name'] = $emailFromName;
 
   $emailFromAddress = trim((string)($_POST['email_from_address'] ?? ''));
   if ($emailFromAddress !== '' && !validate_email($emailFromAddress)) {
@@ -477,26 +478,26 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($emailFromAddress === '') {
       $emailFromAddress = $storeEmail ?: setting_get('store_email', '');
     }
-    setting_set('email_from_address', $emailFromAddress);
+    $updates['email_from_address'] = $emailFromAddress;
   }
 
   $a2hsTitle = pm_sanitize($_POST['a2hs_title'] ?? '', 160);
   if ($a2hsTitle === '') {
     $a2hsTitle = 'Instalar App '.($storeName ?: 'Get Power Research');
   }
-  setting_set('a2hs_title', $a2hsTitle);
+  $updates['a2hs_title'] = $a2hsTitle;
 
   $a2hsSubtitle = pm_clip_text($_POST['a2hs_subtitle'] ?? '', 240);
   if ($a2hsSubtitle === '') {
     $a2hsSubtitle = 'Experiência completa no seu dispositivo.';
   }
-  setting_set('a2hs_subtitle', $a2hsSubtitle);
+  $updates['a2hs_subtitle'] = $a2hsSubtitle;
 
   $a2hsButton = pm_sanitize($_POST['a2hs_button_label'] ?? '', 80);
   if ($a2hsButton === '') {
     $a2hsButton = 'Instalar App';
   }
-  setting_set('a2hs_button_label', $a2hsButton);
+  $updates['a2hs_button_label'] = $a2hsButton;
 
   $currentA2hsIcon = setting_get('a2hs_icon', '');
   if (!empty($_FILES['a2hs_icon']['name'])) {
@@ -508,7 +509,7 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
           @unlink($full);
         }
       }
-      setting_set('a2hs_icon', $upload['path']);
+      $updates['a2hs_icon'] = $upload['path'];
     } else {
       $errors[] = $upload['message'] ?? 'Falha ao enviar ícone do popup.';
     }
@@ -519,7 +520,7 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         @unlink($full);
       }
     }
-    setting_set('a2hs_icon', '');
+    $updates['a2hs_icon'] = '';
   }
 
   $emailDefaultSet = email_template_defaults($storeName ?: (cfg()['store']['name'] ?? 'Sua Loja'));
@@ -527,25 +528,25 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($emailCustomerSubject === '') {
     $emailCustomerSubject = $emailDefaultSet['customer_subject'];
   }
-  setting_set('email_customer_subject', $emailCustomerSubject);
+  $updates['email_customer_subject'] = $emailCustomerSubject;
 
   $emailCustomerBody = pm_clip_text($_POST['email_customer_body'] ?? '', 8000);
   if ($emailCustomerBody === '') {
     $emailCustomerBody = $emailDefaultSet['customer_body'];
   }
-  setting_set('email_customer_body', $emailCustomerBody);
+  $updates['email_customer_body'] = $emailCustomerBody;
 
   $emailAdminSubject = pm_sanitize($_POST['email_admin_subject'] ?? '', 180);
   if ($emailAdminSubject === '') {
     $emailAdminSubject = $emailDefaultSet['admin_subject'];
   }
-  setting_set('email_admin_subject', $emailAdminSubject);
+  $updates['email_admin_subject'] = $emailAdminSubject;
 
   $emailAdminBody = pm_clip_text($_POST['email_admin_body'] ?? '', 8000);
   if ($emailAdminBody === '') {
     $emailAdminBody = $emailDefaultSet['admin_body'];
   }
-  setting_set('email_admin_body', $emailAdminBody);
+  $updates['email_admin_body'] = $emailAdminBody;
 
   $whatsEnabled = isset($_POST['whatsapp_enabled']) ? '1' : '0';
   $whatsNumberRaw = pm_sanitize($_POST['whatsapp_number'] ?? '', 40);
@@ -558,10 +559,10 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($whatsMessage === '') {
     $whatsMessage = 'Olá! Gostaria de tirar uma dúvida sobre os produtos.';
   }
-  setting_set('whatsapp_enabled', $whatsEnabled);
-  setting_set('whatsapp_number', $whatsNumber);
-  setting_set('whatsapp_button_text', $whatsButtonText);
-  setting_set('whatsapp_message', $whatsMessage);
+  $updates['whatsapp_enabled'] = $whatsEnabled;
+  $updates['whatsapp_number'] = $whatsNumber;
+  $updates['whatsapp_button_text'] = $whatsButtonText;
+  $updates['whatsapp_message'] = $whatsMessage;
 
   if (!empty($_FILES['pwa_icon']['name'])) {
     $pwaUpload = save_pwa_icon_upload($_FILES['pwa_icon']);
@@ -573,25 +574,31 @@ if ($action === 'save_general' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!preg_match('/^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/', $themeColor)) {
     $themeColor = '#2060C8';
   }
-  setting_set('theme_color', strtoupper($themeColor));
+  $updates['theme_color'] = strtoupper($themeColor);
   $headerSublineNew = pm_sanitize($_POST['header_subline'] ?? '', 120);
   if ($headerSublineNew === '') $headerSublineNew = 'Loja Online';
-  setting_set('header_subline', $headerSublineNew);
+  $updates['header_subline'] = $headerSublineNew;
   $footerTitleNew = pm_sanitize($_POST['footer_title'] ?? '', 80);
   if ($footerTitleNew === '') $footerTitleNew = 'Get Power Research';
-  setting_set('footer_title', $footerTitleNew);
+  $updates['footer_title'] = $footerTitleNew;
   $footerDescriptionNew = pm_sanitize($_POST['footer_description'] ?? '', 160);
   if ($footerDescriptionNew === '') $footerDescriptionNew = 'Sua loja online com experiência de app.';
-  setting_set('footer_description', $footerDescriptionNew);
+  $updates['footer_description'] = $footerDescriptionNew;
 
   $googleAnalyticsCode = pm_clip_text($_POST['google_analytics_code'] ?? '', 8000);
-  setting_set('google_analytics_code', $googleAnalyticsCode);
+  $updates['google_analytics_code'] = $googleAnalyticsCode;
 
   $policyAllowedTags = '<p><br><strong><em><span><ul><ol><li><a><h1><h2><h3>';
   $privacyContent = pm_safe_html($_POST['privacy_policy_content'] ?? '', $policyAllowedTags, 10000);
   $refundContent = pm_safe_html($_POST['refund_policy_content'] ?? '', $policyAllowedTags, 10000);
-  setting_set('privacy_policy_content', $privacyContent);
-  setting_set('refund_policy_content', $refundContent);
+  $updates['privacy_policy_content'] = $privacyContent;
+  $updates['refund_policy_content'] = $refundContent;
+
+  if ($updates) {
+    if (!setting_set_multi($updates)) {
+      $errors[] = 'Não foi possível salvar todas as configurações. Tente novamente em instantes.';
+    }
+  }
 
   if ($errors) {
     $_SESSION['settings_general_error'] = implode(' ', $errors);

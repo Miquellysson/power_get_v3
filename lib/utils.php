@@ -94,6 +94,49 @@ if (!function_exists('setting_set')) {
     }
 }
 
+if (!function_exists('setting_set_multi')) {
+    /**
+     * Persiste vários valores de uma só vez na tabela settings.
+     *
+     * @param array $keyValuePairs ['chave' => 'valor', ...]
+     * @return bool
+     */
+    function setting_set_multi(array $keyValuePairs): bool {
+        if (!$keyValuePairs) {
+            return true;
+        }
+        settings_bootstrap();
+        $filtered = [];
+        foreach ($keyValuePairs as $key => $value) {
+            $key = trim((string)$key);
+            if ($key === '') {
+                continue;
+            }
+            $filtered[$key] = $value;
+        }
+        if (!$filtered) {
+            return true;
+        }
+        try {
+            $pdo = db();
+            $placeholders = [];
+            $params = [];
+            foreach ($filtered as $key => $value) {
+                $placeholders[] = '(?, ?)';
+                $params[] = $key;
+                $params[] = (is_array($value) || is_object($value))
+                    ? json_encode($value, JSON_UNESCAPED_UNICODE)
+                    : (string)$value;
+            }
+            $sql = 'INSERT INTO settings (skey, svalue) VALUES '.implode(',', $placeholders).' ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)';
+            $stmt = $pdo->prepare($sql);
+            return (bool)$stmt->execute($params);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
 /* =========================================================================
    Migração automática mínima para campos do checkout
    ========================================================================= */

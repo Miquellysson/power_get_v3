@@ -169,6 +169,9 @@ function admin_header($title = 'Admin')
     echo '<a class="icon-btn" href="index.php" target="_blank" rel="noopener noreferrer" title="Ver loja">';
     echo '<i class="fa-solid fa-store" aria-hidden="true"></i>';
     echo '</a>';
+    echo '<a class="icon-btn" href="admin.php?route=logout" title="Sair do painel">';
+    echo '<i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>';
+    echo '</a>';
     echo '<div class="avatar" title="' . sanitize_html($adminName) . '" aria-hidden="true">' . sanitize_html($adminInitials) . '</div>';
     echo '</div>';
     echo '</header>';
