@@ -119,18 +119,25 @@ if (!function_exists('setting_set_multi')) {
         }
         try {
             $pdo = db();
-            $placeholders = [];
-            $params = [];
-            foreach ($filtered as $key => $value) {
-                $placeholders[] = '(?, ?)';
-                $params[] = $key;
-                $params[] = (is_array($value) || is_object($value))
-                    ? json_encode($value, JSON_UNESCAPED_UNICODE)
-                    : (string)$value;
+            $chunkSize = 25;
+            $chunks = array_chunk($filtered, $chunkSize, true);
+            foreach ($chunks as $chunk) {
+                $placeholders = [];
+                $params = [];
+                foreach ($chunk as $key => $value) {
+                    $placeholders[] = '(?, ?)';
+                    $params[] = $key;
+                    $params[] = (is_array($value) || is_object($value))
+                        ? json_encode($value, JSON_UNESCAPED_UNICODE)
+                        : (string)$value;
+                }
+                $sql = 'INSERT INTO settings (skey, svalue) VALUES '.implode(',', $placeholders).' ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)';
+                $stmt = $pdo->prepare($sql);
+                if (!$stmt->execute($params)) {
+                    return false;
+                }
             }
-            $sql = 'INSERT INTO settings (skey, svalue) VALUES '.implode(',', $placeholders).' ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)';
-            $stmt = $pdo->prepare($sql);
-            return (bool)$stmt->execute($params);
+            return true;
         } catch (Throwable $e) {
             return false;
         }
